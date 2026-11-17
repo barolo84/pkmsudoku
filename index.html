@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>포켓몬 스도쿠</title>
+    <meta name="description" content="포켓몬 스티커를 붙이며 푸는 어린이 스도쿠" />
+    <meta name="theme-color" content="#fbf4e4" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="포켓몬 스도쿠" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gaegu:wght@400;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css?v=1" />
+</head>
+
+<body>
+    <main id="app">
+
+        <!-- ===== 처음 화면 ===== -->
+        <section id="home" class="view home">
+            <header class="hero">
+                <button class="icon-btn hero-sound" id="sound-btn" aria-pressed="false" aria-label="소리 끄기">
+                    <span id="sound-ico" aria-hidden="true">🔊</span>
+                </button>
+                <div class="hero-stickers" id="hero-stickers" aria-hidden="true"></div>
+                <h1 class="title"><span class="title-sub">포켓몬</span><span class="title-main">스도쿠</span></h1>
+                <p class="hero-note">스티커를 붙여서 판을 완성해요</p>
+            </header>
+
+            <button class="resume" id="resume" hidden>
+                <span class="resume-ico" aria-hidden="true">▶</span>
+                <span class="resume-txt"><b>이어서 하기</b><span id="resume-info"></span></span>
+            </button>
+
+            <section class="pick" aria-labelledby="pick-team-h">
+                <h2 id="pick-team-h" class="pick-h"><span class="step">1</span>누구랑 할까?</h2>
+                <div class="teams" id="teams" role="radiogroup" aria-labelledby="pick-team-h"></div>
+            </section>
+
+            <section class="pick" aria-labelledby="pick-level-h">
+                <h2 id="pick-level-h" class="pick-h"><span class="step">2</span>어떤 판으로 할까?</h2>
+                <div class="levels" id="levels"></div>
+            </section>
+
+            <footer class="home-foot">
+                <button class="chunky" id="open-book"><span aria-hidden="true">📖</span> 도감 <b id="book-count">0/72</b></button>
+                <button class="chunky" id="open-rank"><span aria-hidden="true">🏆</span> 랭킹</button>
+                <div class="seg" role="group" aria-label="칸에 보이는 모양">
+                    <button id="mode-pic" aria-pressed="true">그림</button>
+                    <button id="mode-num" aria-pressed="false">숫자</button>
+                </div>
+            </footer>
+        </section>
+
+        <!-- ===== 게임 화면 ===== -->
+        <section id="game" class="view game" hidden>
+            <header class="g-top">
+                <button class="icon-btn" id="g-back" aria-label="처음으로">
+                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                        <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <div class="buddy">
+                    <img id="buddy-img" alt="" draggable="false" />
+                    <p id="buddy-say" aria-live="polite"></p>
+                </div>
+                <button class="timer" id="g-timer" aria-label="잠깐 쉬기">
+                    <span class="timer-ico" aria-hidden="true">⏸</span><span id="g-time">0:00</span>
+                </button>
+            </header>
+
+            <div class="g-board-area" id="board-area">
+                <div class="board-wrap">
+                    <div class="board" id="board" role="group" aria-label="스도쿠 판"></div>
+                    <button class="pause" id="pause" hidden>
+                        <span class="pause-z" aria-hidden="true">💤</span>
+                        <b>잠깐 쉬는 중</b>
+                        <span>눌러서 다시 시작</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="g-tray" id="tray">
+                <div class="tray-syms" id="tray-syms"></div>
+                <div class="tray-tools">
+                    <button class="tool" id="t-hint"><span class="tool-ico" aria-hidden="true">💡</span><span
+                            class="tool-txt">힌트</span></button>
+                    <button class="tool" id="t-memo" aria-pressed="false"><span class="tool-ico"
+                            aria-hidden="true">✏️</span><span class="tool-txt">메모</span></button>
+                    <button class="tool" id="t-mode"><span class="tool-ico" id="t-mode-ico"
+                            aria-hidden="true">🔢</span><span class="tool-txt" id="t-mode-txt">숫자로</span></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== 완성 화면 ===== -->
+        <section id="clear" class="view clear" hidden>
+            <div class="clear-top">
+                <div class="stamp" id="stamp" aria-hidden="true"><span>참</span><span>잘했어요</span></div>
+                <h2 class="clear-h" id="clear-h">다 붙였다!</h2>
+                <div class="stars" id="stars" role="img"></div>
+                <p class="clear-time"><b id="clear-time">0:00</b><span class="best-tag" id="best-tag" hidden>내 최고 기록!</span></p>
+                <p class="clear-detail" id="clear-detail"></p>
+            </div>
+
+            <div class="rewards" id="rewards-box">
+                <h3 id="rewards-h">새 친구가 도감에 붙었어!</h3>
+                <div class="reward-row" id="rewards"></div>
+            </div>
+
+            <form class="save" id="save-form" autocomplete="off">
+                <label for="name-input">이름을 적고 기록을 남겨요</label>
+                <div class="save-row">
+                    <input id="name-input" type="text" maxlength="12" placeholder="내 이름" enterkeyhint="done" />
+                    <button class="chunky primary" id="save-btn" type="submit">기록 남기기</button>
+                </div>
+            </form>
+            <div class="saved" id="saved" hidden>
+                <p class="saved-msg" id="saved-msg"></p>
+                <ol class="rank-list" id="clear-rank"></ol>
+                <p class="rank-src" id="clear-rank-src"></p>
+            </div>
+
+            <div class="clear-actions">
+                <button class="chunky primary big" id="again-btn">한 판 더!</button>
+                <button class="chunky" id="clear-home">다른 판 고르기</button>
+            </div>
+        </section>
+
+        <!-- ===== 도감 ===== -->
+        <section id="book" class="view page" hidden>
+            <header class="page-top">
+                <button class="icon-btn" data-home aria-label="처음으로">
+                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                        <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <h2>내 도감</h2>
+                <p class="page-count"><b id="book-have">0</b> / <span id="book-total">72</span></p>
+            </header>
+            <p class="page-note" id="book-note"></p>
+            <div class="book" id="book-body"></div>
+        </section>
+
+        <!-- ===== 랭킹 ===== -->
+        <section id="rank" class="view page" hidden>
+            <header class="page-top">
+                <button class="icon-btn" data-home aria-label="처음으로">
+                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                        <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <h2><span id="trophy">🏆</span> 랭킹</h2>
+            </header>
+            <div class="rank-tabs" id="rank-tabs" role="tablist" aria-label="난이도"></div>
+            <div class="reset-row" id="reset-row" hidden>
+                <p id="reset-msg"></p>
+                <button class="chunky danger" id="reset-yes">지우기</button>
+                <button class="chunky" id="reset-no">그만두기</button>
+            </div>
+            <ol class="rank-list" id="rank-list"></ol>
+            <p class="rank-src" id="rank-src"></p>
+        </section>
+    </main>
+
+    <div class="ghost" id="ghost" aria-hidden="true"></div>
+    <canvas id="confetti" aria-hidden="true"></canvas>
+
+    <script src="engine.js?v=1"></script>
+    <script src="records.js?v=1"></script>
+    <script src="data.js?v=1"></script>
+    <script src="app.js?v=1"></script>
+</body>
+
+</html>

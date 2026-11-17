@@ -1,0 +1,16 @@
+{
+  "name": "포켓몬 스도쿠",
+  "short_name": "포켓몬 스도쿠",
+  "description": "포켓몬 스티커를 붙이며 푸는 어린이 스도쿠",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fcf5e6",
+  "theme_color": "#fcf5e6",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
