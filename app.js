@@ -85,7 +85,7 @@
     })();
 
     // ===== 화면 전환 (처음 화면이 바닥, 나머지는 한 칸 위) =====
-    const VIEWS = ['home', 'game', 'clear', 'book'];
+    const VIEWS = ['home', 'game', 'clear', 'book', 'help'];
     let view = 'home';
 
     function setView(name) {
@@ -111,6 +111,7 @@
         if (v === view) return;
         if (v === 'game' && game && !game.done) { setView('game'); layoutGame(); startClock(); return; }
         if (v === 'book') { renderBook(); setView('book'); return; }
+        if (v === 'help') { helpFrom = 'home'; renderHelp(); setView('help'); return; }
         try { if (v !== 'home') history.replaceState({ v: 'home' }, ''); } catch (err) { }
         renderHome();
         setView('home');
@@ -888,6 +889,98 @@
         renderBook();
         sfx.tap();
     });
+
+    // ===== 게임 방법 =====
+    // 지금 고른 팀의 친구들(숫자 모드면 숫자)로 규칙을 그림으로 보여 준다.
+    let helpFrom = 'home'; // 어디서 열었는지: 게임 중에 열었으면 그 판으로 돌아간다
+
+    function renderHelp() {
+        const team = teamOf(helpFrom === 'game' && game ? game.team : teamId).members;
+        const pic = v => (mode === 'pic' ? `<img src="${imgSrc(team[v - 1].id)}" alt="">` : `<span class="digit">${v}</span>`);
+        const name = v => (mode === 'pic' ? team[v - 1].name : String(v));
+        const friend = w('친구', '숫자');
+        // 보기용 4칸 판 (정답). on: 또렷하게 보일 칸들, hole: 빈칸으로 둘 칸
+        const S = [1, 2, 3, 4, 3, 4, 1, 2, 2, 1, 4, 3, 4, 3, 2, 1];
+        const board = (on, hole = -1) => {
+            let out = '<span class="mb">';
+            for (let b = 0; b < 4; b++) {
+                out += '<span class="mbx">';
+                for (let k = 0; k < 4; k++) {
+                    const i = (Math.floor(b / 2) * 2 + Math.floor(k / 2)) * 4 + (b % 2) * 2 + k % 2;
+                    const cls = on.includes(i) ? 'on' : '';
+                    out += i === hole ? `<i class="hole ${cls}">?</i>` : `<i class="${cls}" style="${tintStyle(S[i])}">${pic(S[i])}</i>`;
+                }
+                out += '</span>';
+            }
+            return out + '</span>';
+        };
+        const sticker = v => `<span class="h-sym" style="${tintStyle(v)}">${pic(v)}</span>`;
+        const first = POOLS.a1.slice(0, 3);
+        $('help-body').innerHTML = `
+            <ol class="help-steps">
+                <li>
+                    <h3>${friend}는 한 번씩만!</h3>
+                    <p>가로줄, 세로줄, 상자마다 <b>같은 ${friend}가 두 번 나오면 안 돼요.</b></p>
+                    <div class="h-three">
+                        <figure>${board([0, 1, 2, 3])}<figcaption>가로줄</figcaption></figure>
+                        <figure>${board([1, 5, 9, 13])}<figcaption>세로줄</figcaption></figure>
+                        <figure>${board([2, 3, 6, 7])}<figcaption>상자</figcaption></figure>
+                    </div>
+                </li>
+                <li>
+                    <h3>빈칸의 주인을 찾아요</h3>
+                    <div class="h-find">${board([8, 9, 10, 11], 10)}<span class="h-arrow">→</span>${sticker(4)}</div>
+                    <p>이 가로줄에 ${esc(name(2))}, ${esc(name(1))}, ${esc(josa(name(3), '이', '가'))} 있으니까… 빈칸은 <b>${esc(name(4))}</b>!</p>
+                </li>
+                <li>
+                    <h3>이렇게 ${w('붙여요', '써요')}</h3>
+                    <div class="h-flow"><span class="h-cell"></span><span class="h-arrow">→</span>${sticker(1)}</div>
+                    <p>빈칸을 콕 누르고, ${friend}를 콕! ${w('스티커를 <b>끌어다</b> 빈칸에 놓아도 돼요.', '숫자를 <b>끌어다</b> 빈칸에 놓아도 돼요.')}</p>
+                </li>
+                <li>
+                    <h3>틀려도 괜찮아요</h3>
+                    <div class="h-say"><img class="stk" src="${imgSrc(team[0].id)}" alt=""><span>같은 가로줄에 ${esc(josa(name(1), '이', '가'))} 있어!</span></div>
+                    <p>틀리면 ${w('붙지', '써지지')} 않고 돌아가요. 왜 안 되는지도 알려 줘요.</p>
+                </li>
+                <li>
+                    <h3>어려우면 힌트 💡</h3>
+                    <p>한 번 누르면 쉬운 칸이 <b>반짝</b>, 한 번 더 누르면 ${w('붙여', '써')} 줘요.</p>
+                    <p class="h-small">한 판에 4칸은 ${R.hintLimit(4)}번, 6칸은 ${R.hintLimit(6)}번, 9칸은 ${R.hintLimit(9)}번까지 쓸 수 있어요.</p>
+                </li>
+                <li>
+                    <h3>도감을 채워요 📖</h3>
+                    <div class="h-book">
+                        <img class="stk" src="${imgSrc(first[0])}" alt=""><img class="blank" src="${imgSrc(first[1])}" alt=""><img class="blank" src="${imgSrc(first[2])}" alt="">
+                    </div>
+                    <p>판을 다 채우면 새 친구가 도감에 붙어요. <b>어려운 판일수록 귀한 친구</b>를 만나요.</p>
+                </li>
+            </ol>
+            <p class="h-more">더 있어요 — ✏️ <b>메모</b>: 빈칸에 작은 숫자로 적어 두기 (6칸·9칸) · 🔢 <b>숫자로</b>: 그림 대신 숫자로 풀기 · ⏸ 시계를 누르면 <b>잠깐 쉬기</b> · ← 를 누르면 <b>나가기</b></p>`;
+        $('help-done').textContent = helpFrom === 'game' ? '판으로 돌아가기' : '알겠어!';
+    }
+
+    function openHelp() {
+        helpFrom = view === 'game' && game && !game.done ? 'game' : 'home';
+        store.set('help', '1');
+        $('open-help').classList.remove('new');
+        sfx.tap();
+        renderHelp();
+        show('help');
+    }
+    function closeHelp() {
+        sfx.tap();
+        if (helpFrom === 'game' && game && !game.done) { // 하던 판으로 돌아간다
+            show('game');
+            layoutGame();
+            refresh();
+            startClock();
+        } else goHome();
+    }
+    $('open-help').addEventListener('click', openHelp);
+    $('buddy-btn').addEventListener('click', openHelp);
+    $('help-back').addEventListener('click', closeHelp);
+    $('help-done').addEventListener('click', closeHelp);
+    if (store.get('help', '') !== '1') $('open-help').classList.add('new'); // 아직 안 본 사람에게는 살짝 눈에 띄게
 
     // ===== 색종이 =====
     function confetti(count = 110) {

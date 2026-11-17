@@ -318,7 +318,7 @@ h3 {
     display: grid;
     align-content: end;
     justify-items: start;
-    min-height: clamp(200px, 52vw, 290px);
+    min-height: clamp(258px, 66vw, 350px); /* 스티커 띠 + 제목 + 설명 + '어떻게 하나요?' 버튼 */
     padding-bottom: var(--space-xs);
 }
 
@@ -410,6 +410,22 @@ h3 {
     margin-top: var(--space-xs);
     color: var(--ink-2);
     font-size: var(--text-md);
+}
+
+.help-btn {
+    position: relative;
+    z-index: 1;
+    min-height: 46px;
+    margin-top: var(--space-sm);
+    padding-inline: var(--space-md);
+    font-size: 1.1rem;
+    border-radius: 23px;
+}
+
+/* 아직 한 번도 안 열어 본 사람에게는 살짝 눈에 띄게 */
+.help-btn.new {
+    background: var(--sun);
+    animation: nudge .9s ease-in-out infinite;
 }
 
 .resume {
@@ -768,6 +784,30 @@ h3 {
     min-width: 0;
     /* 말풍선이 한 줄↔두 줄로 바뀌어도 높이가 그대로여야 판이 밀리지 않는다 */
     min-height: 58px;
+}
+
+.buddy-btn {
+    position: relative;
+    flex: none;
+    padding: 0;
+    background: none;
+    border: 0;
+}
+
+.buddy-q {
+    position: absolute;
+    right: -5px;
+    bottom: -3px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    font-family: var(--font-display);
+    font-size: .78rem;
+    line-height: 1;
+    color: var(--page);
+    background: var(--ink);
+    border-radius: 50%;
 }
 
 .buddy img {
@@ -1710,6 +1750,264 @@ h3 {
     .icon-btn {
         width: 42px;
     }
+}
+
+/* ===== 게임 방법 ===== */
+.help {
+    max-width: 640px;
+}
+
+.help-steps {
+    display: grid;
+    list-style: none;
+    counter-reset: help;
+}
+
+.help-steps > li {
+    position: relative;
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-lg) 0 var(--space-xl) 52px;
+    counter-increment: help;
+    border-top: 2.5px dashed var(--line);
+}
+
+.help-steps > li:first-child {
+    padding-top: var(--space-xs);
+    border-top: 0;
+}
+
+/* 번호: 처음 화면의 ①② 와 같은 모양 */
+.help-steps > li::before {
+    content: counter(help);
+    position: absolute;
+    left: 0;
+    top: var(--space-md);
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--page);
+    background: var(--ink);
+    border-radius: 50%;
+}
+
+.help-steps > li:first-child::before {
+    top: 0;
+}
+
+.help-steps h3 {
+    font-size: var(--text-lg);
+    line-height: 1.2;
+}
+
+.help-steps p {
+    max-width: 30em;
+    color: var(--ink-2);
+}
+
+.help-steps p b {
+    color: var(--ink);
+}
+
+.help-steps .h-small,
+.h-more {
+    font-size: var(--text-sm);
+}
+
+.h-more {
+    padding: var(--space-md) var(--space-lg);
+    line-height: 1.5;
+    color: var(--ink-2);
+    background: var(--paper-2);
+    border-radius: 18px;
+}
+
+.h-more b {
+    color: var(--ink);
+}
+
+/* 보기용 작은 판 — 실제 판과 같은 구조(상자 4개) */
+.mb {
+    --mc: clamp(18px, 5.1vw, 30px);
+    display: inline-grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 3px;
+    padding: 4px;
+    background: var(--ink);
+    border-radius: calc(var(--mc) * .3 + 6px);
+}
+
+.mbx {
+    display: grid;
+    grid-template-columns: repeat(2, var(--mc));
+    grid-auto-rows: var(--mc);
+    gap: 2px;
+    padding: 2px;
+    background: var(--box-a);
+    border-radius: calc(var(--mc) * .2 + 3px);
+}
+
+.mbx:nth-child(2),
+.mbx:nth-child(3) {
+    background: var(--box-b);
+}
+
+.mb i {
+    display: grid;
+    place-items: center;
+    font-style: normal;
+    background: var(--tint);
+    border-radius: 22%;
+    opacity: .22;
+}
+
+.mb i.on {
+    opacity: 1;
+}
+
+.mb img {
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+}
+
+.mb .digit {
+    font-size: calc(var(--mc) * .62);
+}
+
+.mb .hole {
+    font-family: var(--font-display);
+    font-size: calc(var(--mc) * .6);
+    color: var(--red);
+    background: var(--red-soft);
+    box-shadow: 0 0 0 2.5px var(--red);
+}
+
+/* 가로줄·세로줄·상자 세 판이 좁은 폰에서도 한 줄에 나란히 */
+.h-three {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    gap: var(--space-sm);
+}
+
+.h-three .mb {
+    /* 화면 너비에서 여백(32) · 번호 칸(52) · 판 사이(16) · 판 테두리(23×3)를 빼고 12칸으로 나눈 크기 */
+    --mc: min(28px, calc((100vw - 169px) / 12));
+}
+
+.h-three figure {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+}
+
+.h-three figcaption {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+}
+
+.h-find,
+.h-flow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.h-find .mb {
+    --mc: clamp(20px, 7vw, 42px);
+}
+
+.h-arrow {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    color: var(--ink-3);
+}
+
+/* 스티커 통의 스티커와 같은 모양 */
+.h-sym {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    background: var(--tint);
+    border: 2.5px solid var(--ink);
+    border-radius: 24%;
+    box-shadow: 0 4px 0 var(--ink);
+}
+
+.h-sym img {
+    width: 84%;
+    height: 84%;
+    object-fit: contain;
+}
+
+.h-sym .digit {
+    font-size: 2.3rem;
+}
+
+/* 고른 빈칸과 같은 모양 */
+.h-cell {
+    position: relative;
+    flex: none;
+    width: 60px;
+    height: 60px;
+    background: var(--red-soft);
+    border-radius: 20%;
+    box-shadow: 0 0 0 4px var(--red);
+}
+
+.h-cell::before {
+    content: '';
+    position: absolute;
+    inset: 9%;
+    border: 2.5px dashed var(--red);
+    border-radius: 22%;
+}
+
+.h-say {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.h-say img {
+    flex: none;
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+}
+
+.h-say span {
+    padding: 6px 14px 7px;
+    line-height: 1.2;
+    background: var(--red-soft);
+    border: 2.5px solid var(--ink);
+    border-radius: 16px 16px 16px 4px;
+}
+
+.h-book {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.h-book img {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+
+.h-book .blank {
+    filter: brightness(0);
+    opacity: .12;
+}
+
+.help #help-done {
+    align-self: flex-start;
 }
 
 @media (prefers-reduced-motion: reduce) {

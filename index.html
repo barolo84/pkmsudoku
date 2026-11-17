@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gaegu:wght@400;700&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=4" />
+    <link rel="stylesheet" href="style.css?v=5" />
 </head>
 
 <body>
@@ -32,6 +32,7 @@
                 <div class="hero-stickers" id="hero-stickers" aria-hidden="true"></div>
                 <h1 class="title"><span class="title-sub">포켓몬</span><span class="title-main">스도쿠</span></h1>
                 <p class="hero-note">스티커를 붙여서 판을 완성해요</p>
+                <button class="chunky help-btn" id="open-help"><span aria-hidden="true">❓</span> 어떻게 하나요?</button>
             </header>
 
             <button class="resume" id="resume" hidden>
@@ -68,7 +69,10 @@
                     </svg>
                 </button>
                 <div class="buddy">
-                    <img id="buddy-img" alt="" draggable="false" />
+                    <button class="buddy-btn" id="buddy-btn" aria-label="게임 방법 보기">
+                        <img id="buddy-img" alt="" draggable="false" />
+                        <span class="buddy-q" aria-hidden="true">?</span>
+                    </button>
                     <p id="buddy-say" aria-live="polite"></p>
                 </div>
                 <button class="timer" id="g-timer" aria-label="잠깐 쉬기">
@@ -133,6 +137,21 @@
             </div>
         </section>
 
+        <!-- ===== 게임 방법 ===== -->
+        <section id="help" class="view page help" hidden>
+            <header class="page-top">
+                <button class="icon-btn" id="help-back" aria-label="돌아가기">
+                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                        <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <h2>어떻게 하나요?</h2>
+            </header>
+            <div id="help-body"></div>
+            <button class="chunky primary big" id="help-done">알겠어!</button>
+        </section>
+
         <!-- ===== 도감 ===== -->
         <section id="book" class="view page" hidden>
             <header class="page-top">
@@ -158,10 +177,10 @@
     <div class="ghost" id="ghost" aria-hidden="true"></div>
     <canvas id="confetti" aria-hidden="true"></canvas>
 
-    <script src="engine.js?v=4"></script>
-    <script src="records.js?v=4"></script>
-    <script src="data.js?v=4"></script>
-    <script src="app.js?v=4"></script>
+    <script src="engine.js?v=5"></script>
+    <script src="records.js?v=5"></script>
+    <script src="data.js?v=5"></script>
+    <script src="app.js?v=5"></script>
 </body>
 
 </html>
