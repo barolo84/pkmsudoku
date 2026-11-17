@@ -33,6 +33,12 @@ test('stars: 힌트·실수 없이 풀면 별 3개', () => {
     assert.equal(R.stars(0, 9), 1);
 });
 
+test('hintLimit: 한 판에 쓸 수 있는 힌트 — 4칸 2개, 6칸 3개, 9칸 5개', () => {
+    assert.equal(R.hintLimit(4), 2);
+    assert.equal(R.hintLimit(6), 3);
+    assert.equal(R.hintLimit(9), 5);
+});
+
 test('rewardCount: 큰 판일수록 친구를 더 많이', () => {
     assert.equal(R.rewardCount(4), 1);
     assert.equal(R.rewardCount(6), 2);

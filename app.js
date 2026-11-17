@@ -16,9 +16,12 @@
         setJson(k, v) { this.set(k, JSON.stringify(v)); },
     };
 
+    // 데이터(data.js): 도감 100마리, 난이도별 친구 묶음(POOLS), 판에 붙이는 팀
+    const { POOLS, LEVEL_INFO, SIZE_INFO } = window.SudokuData;
     const POKE = {};
-    TEAMS.forEach(t => t.members.forEach(m => { POKE[m.id] = m; }));
-    const ROSTER = TEAMS.flatMap(t => t.members.map(m => m.id));
+    for (const id in window.SudokuData.POKEMON) POKE[id] = { id: +id, name: window.SudokuData.POKEMON[id] };
+    const TEAMS = window.SudokuData.TEAMS.map(t => ({ ...t, members: t.members.map(id => POKE[id]) }));
+    const ROSTER = E.LEVELS.flatMap(l => POOLS[l.id]); // 도감 순서 = 난이도 순서
     const teamOf = id => TEAMS.find(t => t.id === id) || TEAMS[0];
     const imgSrc = id => `images/${id}.webp`;
 
@@ -26,6 +29,7 @@
     let mode = store.get('mode', 'pic') === 'num' ? 'num' : 'pic';   // 칸에 그림을 보일지 숫자를 보일지
     let muted = store.get('mute', '0') === '1';
     const caught = new Set(store.json('caught', []).filter(id => POKE[id]));
+    const poolHave = level => POOLS[level].filter(id => caught.has(id)).length; // 그 난이도 친구 중 모은 수
     const best = store.json('best', {});                             // { 난이도: { s: 초, st: 별 } }
 
     // ===== 말 다듬기 =====
@@ -140,14 +144,13 @@
             <div class="size-group" data-size="${size}">
                 <div class="size-tag">${miniGrid(size)}<b>${SIZE_INFO[size].label}</b><span>${SIZE_INFO[size].hint}</span></div>
                 <div class="lvls">${E.LEVELS.filter(l => l.size === size).map(l => {
-            const info = LEVEL_INFO[l.id], b = best[l.id];
-            const rec = b
-                ? `<span class="st" aria-label="별 ${b.st}개">${'★'.repeat(b.st)}${'☆'.repeat(3 - b.st)}</span> ${R.formatTime(b.s)}`
-                : '도전해 봐!';
-            return `<button class="lvl" data-level="${l.id}">
+            const info = LEVEL_INFO[l.id], st = best[l.id] ? best[l.id].st : 0;
+            const have = poolHave(l.id), total = POOLS[l.id].length;
+            return `<button class="lvl${have === total ? ' full' : ''}" data-level="${l.id}"
+                        aria-label="${info.name}, 별 ${st}개, 친구 ${total}마리 중 ${have}마리">
                         <span class="lvl-no" aria-hidden="true">${info.lv}</span>
                         <span class="lvl-name">${info.name}</span>
-                        <span class="lvl-rec">${rec}</span>
+                        <span class="lvl-rec"><span class="st">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</span> <span class="got">${have}/${total}</span></span>
                     </button>`;
         }).join('')}</div>
             </div>`).join('');
@@ -241,7 +244,7 @@
     function saveGame() {
         if (!game || game.done) return;
         const { level, size, puzzle, solution, grid, notes, team, ms, hints, mistakes } = game;
-        store.setJson('game', { level, size, puzzle, solution, grid, notes, team, ms, hints, mistakes });
+        store.setJson('game', { level, size, puzzle, solution, grid, notes, team, ms, hints, mistakes, hintIdx: hint ? hint.idx : -1 });
     }
 
     function startGame(levelId) {
@@ -261,15 +264,19 @@
         enterGame('이어서 해 보자!');
     }
     function enterGame(firstWords) {
-        sel = -1; armed = 0; memo = false; hint = null; paused = false; result = null;
+        sel = -1; armed = 0; memo = false; paused = false; result = null;
+        // 쓰던 힌트가 남아 있으면 이어서 반짝인다 (이미 센 힌트라 다시 세지 않는다)
+        const hi = game.hintIdx;
+        hint = hi >= 0 && game.grid[hi] === 0 ? { idx: hi, value: game.solution[hi], reason: 'naked' } : null;
         preload(syms().map(m => m.id));
         buildBoard();
         buildTray();
         $('buddy-img').src = imgSrc(syms()[0].id);
         $('pause').hidden = true;
+        $('leave').hidden = true;
         $('t-memo').hidden = game.size === 4;
         $('t-memo').setAttribute('aria-pressed', 'false');
-        setHintButton(false);
+        updateHintButton();
         show('game');
         layoutGame();
         refresh();
@@ -441,12 +448,12 @@
         const maxCell = size === 4 ? 150 : size === 6 ? 112 : 86;
         const cell = Math.max(18, Math.min(maxCell,
             Math.floor(Math.min((area.clientWidth - fixedW) / size, (area.clientHeight - fixedH) / size))));
-        const board = $('board');
-        board.style.setProperty('--cell', cell + 'px');
-        board.style.setProperty('--g', m.g + 'px');
-        board.style.setProperty('--bp', m.bp + 'px');
-        board.style.setProperty('--G', m.G + 'px');
-        board.style.setProperty('--pad', m.pad + 'px');
+        const wrap = $('board').parentElement; // 판과 그 위를 덮는 화면(쉬기·나가기)이 같은 크기 값을 쓴다
+        wrap.style.setProperty('--cell', cell + 'px');
+        wrap.style.setProperty('--g', m.g + 'px');
+        wrap.style.setProperty('--bp', m.bp + 'px');
+        wrap.style.setProperty('--G', m.G + 'px');
+        wrap.style.setProperty('--pad', m.pad + 'px');
     }
     let layoutTimer = 0;
     function queueLayout() { clearTimeout(layoutTimer); layoutTimer = setTimeout(layoutGame, 60); }
@@ -478,7 +485,7 @@
     window.addEventListener('pagehide', saveGame);
 
     function setPaused(on) {
-        if (!game || game.done) return;
+        if (!game || game.done || !$('leave').hidden) return;
         paused = on;
         $('pause').hidden = !on;
         $('g-timer').querySelector('.timer-ico').textContent = on ? '▶' : '⏸';
@@ -488,7 +495,36 @@
     }
     $('g-timer').addEventListener('click', () => setPaused(!paused));
     $('pause').addEventListener('click', () => setPaused(false));
-    $('g-back').addEventListener('click', () => { sfx.tap(); goHome(); });
+
+    // ----- 나가기: 나중에 이어서 할지, 그냥 나갈지 고른다 -----
+    function askLeave() {
+        if (!game || game.done) { goHome(); return; }
+        if (!$('leave').hidden) { closeLeave(); return; }
+        paused = true;
+        $('pause').hidden = true;
+        $('leave').hidden = false;
+        saveGame();
+        endDrag();
+        sfx.tap();
+    }
+    function closeLeave() {
+        $('leave').hidden = true;
+        paused = false;
+        lastTick = performance.now();
+        $('g-timer').querySelector('.timer-ico').textContent = '⏸';
+        $('g-timer').setAttribute('aria-label', '잠깐 쉬기');
+        sfx.tap();
+    }
+    $('g-back').addEventListener('click', askLeave);
+    $('leave-stay').addEventListener('click', closeLeave);
+    $('leave-save').addEventListener('click', () => { sfx.tap(); goHome(); }); // 화면을 떠날 때 저장된다
+    $('leave-quit').addEventListener('click', () => { // 그냥 나가기: 이 판은 남기지 않는다
+        sfx.tap();
+        stopClock();
+        store.del('game');
+        game = null;
+        goHome();
+    });
 
     // ===== 스티커 붙이기 =====
     const UNIT_NAME = { row: '가로줄', col: '세로줄', box: '상자' };
@@ -542,7 +578,6 @@
 
     function onCell(i) {
         if (!game || game.done || paused) return;
-        if (hint && hint.idx !== i) setHint(null);
         if (game.grid[i] === 0 && armed && !memo) { place(i, armed); return; }
         if (game.grid[i] !== 0) { armed = 0; sel = sel === i ? -1 : i; }
         else sel = i;
@@ -620,7 +655,6 @@
             ghost.style.setProperty('--dig', `var(--d${drag.v})`);
             ghost.classList.add('on');
             drag.tile.classList.add('lifted');
-            if (hint) setHint(null);
         }
         const p = dragPoint(e);
         $('ghost').style.transform = `translate(${p.x}px, ${p.y}px)`;
@@ -643,28 +677,38 @@
         onSym(+tile.dataset.v);
     });
 
-    // ----- 힌트: 처음엔 칸만 알려주고, 한 번 더 누르면 붙여 준다 -----
-    function setHintButton(again) {
-        $('t-hint').classList.toggle('again', again);
-        $('t-hint').querySelector('.tool-txt').textContent = again ? w('붙여 줘', '써 줘') : '힌트';
+    // ----- 힌트: 한 판에 쓸 수 있는 수가 정해져 있다 (4칸 2개 · 6칸 3개 · 9칸 5개) -----
+    // 한 번 쓰면 찾기 쉬운 칸이 반짝이고, 한 번 더 누르면 그 칸에 붙여 준다.
+    // 반짝이는 힌트는 그 칸이 채워질 때까지 남아 있다 (다른 칸을 눌러도 사라지지 않는다).
+    const hintsLeft = () => Math.max(0, R.hintLimit(game.size) - game.hints);
+    function updateHintButton() {
+        const btn = $('t-hint'), left = hintsLeft();
+        btn.classList.toggle('again', !!hint);
+        btn.classList.toggle('spent', !hint && left === 0);
+        btn.querySelector('.tool-txt').textContent = hint ? w('붙여 줘', '써 줘') : `힌트 ${left}`;
+        btn.setAttribute('aria-label', hint ? '반짝이는 칸에 붙여 주기' : `힌트, ${left}개 남음`);
     }
     function setHint(h) {
         hint = h;
-        setHintButton(!!h);
+        if (game) updateHintButton();
     }
     function onHint() {
         if (!game || game.done || paused) return;
-        if (hint && game.grid[hint.idx] === 0) {
-            const { idx, value } = hint;
-            game.hints++;
-            setHint(null);
-            const name = symName(value);
+        if (hint && game.grid[hint.idx] === 0) { // 두 번째: 반짝이던 칸에 붙여 준다 (힌트를 더 쓰지 않는다)
+            const { idx, value } = hint, name = symName(value);
             place(idx, value);
-            if (!game.done) say(name + (hasBatchim(name) ? '이었어!' : '였어!'));
+            if (game && !game.done) say(name + (hasBatchim(name) ? '이었어!' : '였어!'));
+            return;
+        }
+        if (hintsLeft() === 0) {
+            say('힌트를 다 썼어!');
+            flash($('t-hint'), 'nope');
+            sfx.tap();
             return;
         }
         const h = E.nextHint(game.grid, game.size, game.solution);
         if (!h) return;
+        game.hints++;
         armed = 0; sel = h.idx;
         setHint(h);
         refresh();
@@ -672,6 +716,7 @@
         say(h.reason === 'naked' || h.reason === 'solution'
             ? `반짝이는 칸! ${w('누가 올까?', '몇이 올까?')}`
             : `반짝 칸! ${UNIT_NAME[h.reason]}에 ${w('누가', '뭐가')} 없지?`);
+        saveGame();
     }
     $('t-hint').addEventListener('click', onHint);
 
@@ -691,7 +736,7 @@
         setMode(mode === 'pic' ? 'num' : 'pic');
         cells.forEach((_, i) => renderCell(i));
         buildTray();
-        setHintButton(!!hint);
+        updateHintButton();
         refresh();
         sfx.tap();
     });
@@ -700,6 +745,7 @@
     document.addEventListener('keydown', e => {
         if (view !== 'game' || !game || game.done || e.metaKey || e.ctrlKey || e.altKey) return;
         const k = e.key, size = game.size;
+        if (!$('leave').hidden) { if (k === 'Escape') closeLeave(); return; }
         if (k === ' ' || k === 'p' || k === 'P') { e.preventDefault(); setPaused(!paused); return; }
         if (paused) return;
         const step = { ArrowUp: -size, ArrowDown: size, ArrowLeft: -1, ArrowRight: 1 }[k];
@@ -710,14 +756,13 @@
                 const sameRow = Math.floor((i + step) / size) === Math.floor(i / size);
                 if (Math.abs(step) === 1 ? sameRow : i + step >= 0 && i + step < size * size) i += step;
             }
-            if (hint && hint.idx !== i) setHint(null);
             sel = i; armed = 0;
             refresh();
         } else if (/^[1-9]$/.test(k) && +k <= size) {
             onSym(+k);
         } else if (k === 'h' || k === 'H') onHint();
         else if (k === 'm' || k === 'M') toggleMemo();
-        else if (k === 'Escape') { sel = -1; armed = 0; setHint(null); refresh(); }
+        else if (k === 'Escape') { sel = -1; armed = 0; refresh(); }
         else if ((k === 'Backspace' || k === 'Delete') && sel >= 0 && game.notes[sel]) {
             game.notes[sel] = 0;
             renderCell(sel);
@@ -737,12 +782,12 @@
         const isBest = !prev || secs < prev.s;
         best[level] = { s: isBest ? secs : prev.s, st: Math.max(st, prev ? prev.st : 0) };
         store.setJson('best', best);
-        // 보상: 함께 논 팀의 친구가 도감에 붙는다 (이 게임의 목표)
-        const before = caught.size;
-        const rewards = R.pickRewards(ROSTER, [...caught], R.rewardCount(size), Math.random, syms().map(m => m.id));
+        // 보상: 이 난이도에 정해진 친구들 중에서 도감에 붙는다 (함께 논 팀의 친구가 있으면 먼저)
+        const poolBefore = poolHave(level);
+        const rewards = R.pickRewards(POOLS[level], [...caught], R.rewardCount(size), Math.random, syms().map(m => m.id));
         rewards.forEach(id => caught.add(id));
         store.setJson('caught', [...caught]);
-        result = { level, size, secs, hints, mistakes, st, isBest: isBest && !!prev, rewards, before };
+        result = { level, size, secs, hints, mistakes, st, isBest: isBest && !!prev, rewards, poolBefore };
 
         sel = -1; armed = 0; setHint(null);
         refresh();
@@ -775,24 +820,29 @@
         ].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('')
             + (r.isBest ? '<span class="best-tag">내 최고 기록!</span>' : '');
 
-        const total = ROSTER.length;
-        $('rewards-h').textContent = r.rewards.length ? '새 친구가 도감에 붙었어!' : '도감을 모두 모았어! 👑';
+        const total = POOLS[r.level].length, have = poolHave(r.level);
+        const next = E.LEVELS.find(l => poolHave(l.id) < POOLS[l.id].length); // 아직 친구가 남은 가장 쉬운 판
+        $('rewards-h').textContent = r.rewards.length ? '새 친구가 도감에 붙었어!'
+            : next ? '이 판 친구는 다 모았어!' : '도감을 모두 모았어! 👑';
+        $('rewards-sub').hidden = !!r.rewards.length || !next;
+        if (next) $('rewards-sub').textContent = `'${LEVEL_INFO[next.id].name}' 판에 새 친구가 있어`;
         $('rewards').hidden = !r.rewards.length;
         $('rewards').dataset.n = r.rewards.length;
         $('rewards').innerHTML = r.rewards.map((id, i) =>
             `<div class="reward" style="--i:${i}"><img class="stk" src="${imgSrc(id)}" alt=""><span>${esc(POKE[id].name)}</span></div>`).join('');
         if (r.rewards.length) setTimeout(() => { if (view === 'clear') sfx.reward(); }, reducedMotion ? 0 : 1000);
 
-        // 도감이 얼마나 찼는지: 방금 붙은 만큼 차오른다
+        // 이 판의 친구를 얼마나 모았는지: 방금 붙은 만큼 차오른다
         const fill = $('meter-fill');
         fill.style.transition = 'none';
-        fill.style.transform = `scaleX(${r.before / total})`;
+        fill.style.transform = `scaleX(${r.poolBefore / total})`;
         void fill.offsetWidth;
         fill.style.transition = '';
-        fill.style.transform = `scaleX(${caught.size / total})`;
-        $('meter-have').textContent = caught.size;
+        fill.style.transform = `scaleX(${have / total})`;
+        $('meter-have').textContent = have;
         $('meter-total').textContent = total;
-        $('meter').setAttribute('aria-label', `도감 ${total}마리 중 ${caught.size}마리`);
+        $('meter').setAttribute('aria-label', `이 판 친구 ${total}마리 중 ${have}마리`);
+        $('clear-book-count').textContent = `${caught.size}/${ROSTER.length}`;
     }
 
     $('again-btn').addEventListener('click', () => { sfx.place(); startGame(result ? result.level : 'a1'); });
@@ -805,15 +855,14 @@
         $('book-have').textContent = caught.size;
         $('book-total').textContent = ROSTER.length;
         $('book-note').textContent = caught.size === ROSTER.length ? '모든 친구를 모았어! 👑'
-            : caught.size === 0 ? '판을 완성하면 함께 논 친구가 스티커로 붙어요.'
-                : '큰 판을 완성할수록 친구를 더 많이 만나요.';
-        $('book-body').innerHTML = TEAMS.map(t => {
-            const have = t.members.filter(m => caught.has(m.id)).length;
+            : '판마다 만나는 친구가 달라요. 어려운 판일수록 귀한 친구!';
+        $('book-body').innerHTML = E.LEVELS.map(l => {
+            const info = LEVEL_INFO[l.id], pool = POOLS[l.id];
             return `<section class="book-team">
-                <h3>${esc(t.name)} <small>${have}/${t.members.length}</small></h3>
-                <div class="book-grid">${t.members.map(m => caught.has(m.id)
-                ? `<div class="slot"><img class="stk" src="${imgSrc(m.id)}" alt="" loading="lazy"><span>${esc(m.name)}</span></div>`
-                : `<div class="slot blank"><img src="${imgSrc(m.id)}" alt="" loading="lazy"><span>?</span></div>`).join('')}</div>
+                <h3><span class="book-lv" aria-hidden="true">${info.lv}</span>${esc(info.name)} <small>${SIZE_INFO[l.size].label} · ${poolHave(l.id)}/${pool.length}</small></h3>
+                <div class="book-grid">${pool.map(id => caught.has(id)
+                ? `<div class="slot"><img class="stk" src="${imgSrc(id)}" alt="" loading="lazy"><span>${esc(POKE[id].name)}</span></div>`
+                : `<div class="slot blank"><img src="${imgSrc(id)}" alt="" loading="lazy"><span>?</span></div>`).join('')}</div>
             </section>`;
         }).join('');
     }

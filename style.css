@@ -695,6 +695,17 @@ h3 {
     letter-spacing: -1px;
 }
 
+/* 그 판에서 만날 수 있는 친구 중 몇 마리를 모았는지 */
+.lvl-rec .got {
+    margin-left: 2px;
+    font-family: var(--font-display);
+    font-size: .88rem;
+}
+
+.lvl.full .got {
+    color: var(--leaf-deep);
+}
+
 .home-foot {
     display: flex;
     flex-wrap: wrap;
@@ -1036,6 +1047,33 @@ h3 {
     font-size: 3rem;
 }
 
+/* 나가기 선택: 판 위를 덮는다 */
+.leave {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-content: center;
+    justify-items: stretch;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--paper-2);
+    border: 4px solid var(--ink);
+    border-radius: calc(var(--cell) * .2 + 12px);
+}
+
+.leave b {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-xl);
+    text-align: center;
+}
+
+.leave .chunky {
+    min-width: min(240px, 100%);
+    justify-content: flex-start;
+}
+
 /* 스티커 통 */
 .g-tray {
     display: grid;
@@ -1166,6 +1204,23 @@ h3 {
 
 .tool[aria-pressed="true"] {
     background: var(--sun);
+}
+
+/* 힌트를 다 썼을 때 */
+.tool.spent {
+    color: var(--ink-3);
+    background: var(--paper-2);
+    border-color: var(--ink-3);
+    box-shadow: 0 2px 0 var(--ink-3);
+    transform: translateY(2px);
+}
+
+.tool.spent .tool-ico {
+    opacity: .45;
+}
+
+.tool.nope {
+    animation: shake .36s var(--ease-out);
 }
 
 .tool.again {
@@ -1406,6 +1461,11 @@ h3 {
     font-size: var(--text-md);
 }
 
+.rewards-sub {
+    font-size: var(--text-md);
+    color: var(--ink-2);
+}
+
 .reward-row {
     display: flex;
     flex-wrap: wrap;
@@ -1466,6 +1526,12 @@ h3 {
     background: var(--sun);
     transform-origin: left;
     transition: transform .9s var(--ease-out) 1.5s;
+}
+
+.meter-label {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+    white-space: nowrap;
 }
 
 .book-meter p {
@@ -1540,6 +1606,19 @@ h3 {
     gap: var(--space-sm);
     margin-bottom: var(--space-sm);
     font-size: var(--text-lg);
+}
+
+.book-lv {
+    flex: none;
+    align-self: center;
+    display: grid;
+    place-items: center;
+    width: 1.5em;
+    height: 1.5em;
+    font-size: .8em;
+    color: var(--page);
+    background: var(--ink);
+    border-radius: 50%;
 }
 
 .book-team h3 small {

@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gaegu:wght@400;700&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=2" />
+    <link rel="stylesheet" href="style.css?v=3" />
 </head>
 
 <body>
@@ -50,7 +50,7 @@
             </section>
 
             <footer class="home-foot">
-                <button class="chunky" id="open-book"><span aria-hidden="true">📖</span> 도감 <b id="book-count">0/72</b></button>
+                <button class="chunky" id="open-book"><span aria-hidden="true">📖</span> 도감 <b id="book-count">0/100</b></button>
                 <div class="seg" role="group" aria-label="칸에 보이는 모양">
                     <button id="mode-pic" aria-pressed="true">그림</button>
                     <button id="mode-num" aria-pressed="false">숫자</button>
@@ -84,6 +84,12 @@
                         <b>잠깐 쉬는 중</b>
                         <span>눌러서 다시 시작</span>
                     </button>
+                    <div class="leave" id="leave" role="dialog" aria-labelledby="leave-h" hidden>
+                        <b id="leave-h">그만할까?</b>
+                        <button class="chunky" id="leave-save"><span aria-hidden="true">⏸</span> 나중에 이어서 하기</button>
+                        <button class="chunky" id="leave-quit"><span aria-hidden="true">🚪</span> 그냥 나가기</button>
+                        <button class="chunky primary" id="leave-stay"><span aria-hidden="true">▶</span> 계속 하기</button>
+                    </div>
                 </div>
             </div>
 
@@ -111,17 +117,18 @@
 
             <div class="rewards" id="rewards-box">
                 <h3 id="rewards-h">새 친구가 도감에 붙었어!</h3>
+                <p class="rewards-sub" id="rewards-sub" hidden></p>
                 <div class="reward-row" id="rewards"></div>
                 <div class="book-meter">
-                    <span aria-hidden="true">📖</span>
+                    <span class="meter-label">이 판 친구</span>
                     <div class="meter" id="meter" role="img"><i id="meter-fill"></i></div>
-                    <p aria-hidden="true"><b id="meter-have">0</b> / <span id="meter-total">72</span></p>
+                    <p aria-hidden="true"><b id="meter-have">0</b> / <span id="meter-total">14</span></p>
                 </div>
             </div>
 
             <div class="clear-actions">
                 <button class="chunky primary big" id="again-btn">한 판 더!</button>
-                <button class="chunky" id="clear-book"><span aria-hidden="true">📖</span> 도감 보기</button>
+                <button class="chunky" id="clear-book"><span aria-hidden="true">📖</span> 도감 <b id="clear-book-count">0/100</b></button>
                 <button class="chunky" id="clear-home">다른 판 고르기</button>
             </div>
         </section>
@@ -136,7 +143,7 @@
                     </svg>
                 </button>
                 <h2>내 도감</h2>
-                <p class="page-count"><b id="book-have">0</b> / <span id="book-total">72</span></p>
+                <p class="page-count"><b id="book-have">0</b> / <span id="book-total">100</span></p>
             </header>
             <p class="page-note" id="book-note"></p>
             <div class="book" id="book-body"></div>
@@ -146,10 +153,10 @@
     <div class="ghost" id="ghost" aria-hidden="true"></div>
     <canvas id="confetti" aria-hidden="true"></canvas>
 
-    <script src="engine.js?v=2"></script>
-    <script src="records.js?v=2"></script>
-    <script src="data.js?v=2"></script>
-    <script src="app.js?v=2"></script>
+    <script src="engine.js?v=3"></script>
+    <script src="records.js?v=3"></script>
+    <script src="data.js?v=3"></script>
+    <script src="app.js?v=3"></script>
 </body>
 
 </html>

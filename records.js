@@ -7,6 +7,7 @@
     'use strict';
 
     const REWARDS_BY_SIZE = { 4: 1, 6: 2, 9: 3 };
+    const HINTS_BY_SIZE = { 4: 2, 6: 3, 9: 5 };   // 한 판에 쓸 수 있는 힌트 수
 
     function elapsedSeconds(ms) {
         return Math.max(1, Math.round(ms / 1000));
@@ -23,6 +24,10 @@
         return slips === 0 ? 3 : slips <= 3 ? 2 : 1;
     }
 
+    function hintLimit(size) {
+        return HINTS_BY_SIZE[size] || 0;
+    }
+
     function rewardCount(size) {
         return REWARDS_BY_SIZE[size] || 1;
     }
@@ -36,5 +41,5 @@
         return first.concat(rest).slice(0, count);
     }
 
-    return { elapsedSeconds, formatTime, stars, rewardCount, pickRewards };
+    return { elapsedSeconds, formatTime, stars, hintLimit, rewardCount, pickRewards };
 }));
