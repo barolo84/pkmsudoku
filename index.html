@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gaegu:wght@400;700&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=3" />
+    <link rel="stylesheet" href="style.css?v=4" />
 </head>
 
 <body>
@@ -142,9 +142,14 @@
                             stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                 </button>
-                <h2>내 도감</h2>
+                <h2><span id="book-ico">📖</span> 내 도감</h2>
                 <p class="page-count"><b id="book-have">0</b> / <span id="book-total">100</span></p>
             </header>
+            <div class="reset-row" id="book-reset" hidden>
+                <p>도감과 별을 모두 지우고 처음부터 다시 모을까요?</p>
+                <button class="chunky danger" id="book-reset-yes">처음부터 다시</button>
+                <button class="chunky" id="book-reset-no">그만두기</button>
+            </div>
             <p class="page-note" id="book-note"></p>
             <div class="book" id="book-body"></div>
         </section>
@@ -153,10 +158,10 @@
     <div class="ghost" id="ghost" aria-hidden="true"></div>
     <canvas id="confetti" aria-hidden="true"></canvas>
 
-    <script src="engine.js?v=3"></script>
-    <script src="records.js?v=3"></script>
-    <script src="data.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="engine.js?v=4"></script>
+    <script src="records.js?v=4"></script>
+    <script src="data.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 </body>
 
 </html>

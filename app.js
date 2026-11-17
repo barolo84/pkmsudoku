@@ -852,6 +852,7 @@
 
     // ===== 도감 =====
     function renderBook() {
+        $('book-reset').hidden = true;
         $('book-have').textContent = caught.size;
         $('book-total').textContent = ROSTER.length;
         $('book-note').textContent = caught.size === ROSTER.length ? '모든 친구를 모았어! 👑'
@@ -866,6 +867,27 @@
             </section>`;
         }).join('');
     }
+
+    // 숨은 기능(부모용): 제목의 📖를 1.5초 안에 3번 누르면 도감 초기화를 물어본다 (pkmq의 🏆 3연타와 같은 방식)
+    let bookTaps = 0, bookTapTimer = 0;
+    $('book-ico').addEventListener('click', () => {
+        bookTaps++;
+        clearTimeout(bookTapTimer);
+        bookTapTimer = setTimeout(() => { bookTaps = 0; }, 1500);
+        if (bookTaps < 3) return;
+        bookTaps = 0;
+        $('book-reset').hidden = false;
+        $('book-reset').scrollIntoView({ block: 'nearest' });
+    });
+    $('book-reset-no').addEventListener('click', () => { $('book-reset').hidden = true; });
+    $('book-reset-yes').addEventListener('click', () => { // 모은 친구와 별을 모두 지운다 (하던 판은 그대로)
+        caught.clear();
+        store.del('caught');
+        for (const level in best) delete best[level];
+        store.del('best');
+        renderBook();
+        sfx.tap();
+    });
 
     // ===== 색종이 =====
     function confetti(count = 110) {

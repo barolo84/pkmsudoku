@@ -1557,6 +1557,27 @@ h3 {
     flex: 1 1 200px;
 }
 
+/* 초기화 확인 (부모용 숨은 기능) */
+.reset-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    background: var(--red-soft);
+    border: 2.5px solid var(--ink);
+    border-radius: 18px;
+}
+
+.reset-row p {
+    flex: 1 1 200px;
+}
+
+.chunky.danger {
+    background: var(--red);
+    color: var(--page);
+}
+
 /* ===== 도감 페이지 ===== */
 .page {
     display: flex;
