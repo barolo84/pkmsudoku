@@ -7,20 +7,23 @@
 <p>
   <img src="docs/home.png" width="240" alt="처음 화면" />
   <img src="docs/game.png" width="240" alt="6칸 판" />
+  <img src="docs/clear.png" width="240" alt="완성 화면: 새 친구가 도감에 붙는다" />
 </p>
 <img src="docs/game-tablet.png" width="490" alt="태블릿 가로 화면" />
 
 ## 노는 방법
+
+목표는 **도감 채우기**다. 판을 완성할 때마다 포켓몬이 도감에 붙고, 72마리를 모두 모으면 끝.
 
 1. **누구랑 할까?** — 포켓몬 팀(9마리 × 8팀)을 고른다.
 2. **어떤 판으로 할까?** — 난이도를 누르면 바로 시작한다.
 3. 빈칸을 누르고 스티커를 고르거나, 스티커를 **끌어다** 빈칸에 놓는다. 스티커를 먼저 누르고 빈칸을 눌러도 된다.
 
 - 틀린 스티커는 붙지 않고 돌아간다. 왜 안 되는지("같은 가로줄에 피카츄가 있어!") 알려준다. 게임 오버는 없다.
-- **힌트**는 두 단계다. 처음엔 찾기 쉬운 칸만 반짝이고(무료), 한 번 더 누르면 붙여 준다(+15초).
+- **힌트**는 두 단계다. 처음엔 찾기 쉬운 칸만 반짝이고, 한 번 더 누르면 붙여 준다.
 - **메모**(6칸·9칸): 빈칸에 작은 숫자로 후보를 적어 둔다.
 - **그림 ↔ 숫자**: 같은 판을 숫자 스도쿠로 바꿔 볼 수 있다.
-- 판을 완성하면 함께 논 팀의 포켓몬이 **도감**에 붙는다 (4칸 1마리, 6칸 2마리, 9칸 3마리).
+- 판을 완성하면 함께 논 팀의 포켓몬이 **도감**에 붙는다 (4칸 1마리, 6칸 2마리, 9칸 3마리). 그 팀을 다 모았으면 다른 팀에서 온다.
 - 하다가 나가도 **이어서 하기**로 돌아온다.
 - PC 키보드: 방향키(칸 이동), 숫자키(붙이기), `H` 힌트, `M` 메모, `Space` 잠깐 쉬기.
 
@@ -38,19 +41,19 @@
 
 모든 판은 답이 하나뿐이고, 찍지 않아도 "이 자리에 올 수 있는 건 하나뿐" 추론만으로 끝까지 풀린다.
 
-### 기록
+### 별과 시간
 
-`기록 = 걸린 시간 + 힌트 1번당 15초 + 실수 1번당 5초` — 짧을수록 높은 순위.
-별은 힌트·실수가 없으면 3개, 합쳐서 3번 이하면 2개, 그 밖엔 1개.
+별은 힌트·실수가 없으면 3개, 합쳐서 3번 이하면 2개, 그 밖엔 1개. 난이도마다 가장 많이 받은 별과 가장 빠른 시간이
+처음 화면에 남는다. 도감·별·시간은 모두 그 기기(브라우저)에만 저장된다 — 순위표나 이름 입력은 없다.
 
 ## 파일
 
 | 파일 | 내용 |
 | --- | --- |
 | `index.html` / `style.css` | 화면 (스티커북 콘셉트, `.impeccable.md`에 디자인 기준) |
-| `app.js` | 화면 동작: 입력, 저장, 랭킹 통신 |
+| `app.js` | 화면 동작: 입력, 기기 저장 |
 | `engine.js` | 스도쿠 로직: 퍼즐 생성, 풀이, 힌트 (화면과 무관) |
-| `records.js` | 기록 계산, 순위 매기기, 도감 보상 (화면과 무관) |
+| `records.js` | 걸린 시간, 별, 도감 보상 (화면과 무관) |
 | `data.js` | 포켓몬 팀, 난이도 이름 |
 | `images/` | 포켓몬 이미지 72장 (`<도감번호>.webp`) |
 | `tests/` | `engine.js`, `records.js` 테스트 |
@@ -59,51 +62,15 @@
 
 ```sh
 python3 -m http.server 8000   # http://localhost:8000 (index.html을 그냥 더블클릭해도 된다)
-node --test                   # 로직 테스트 38개
+node --test                   # 로직 테스트 30개
 ```
 
-파일을 고친 뒤 배포할 때는 `index.html`의 `?v=1`을 올려야 브라우저가 새 파일을 받는다.
+파일을 고친 뒤 배포할 때는 `index.html`의 `?v=` 숫자를 올려야 브라우저가 새 파일을 받는다.
 
 ## 배포 (GitHub Pages)
 
 pkmq와 같은 방식이다. `main` 브랜치에 push하면 GitHub Pages(`main` 브랜치 `/ (root)`)가 1~2분 안에
 <https://barolo84.github.io/pkmsudoku/> 에 반영한다. iPad/iPhone은 공유 → "홈 화면에 추가"로 앱처럼 쓸 수 있다.
-
-## 온라인 랭킹 켜기 (한 번만)
-
-랭킹은 pkmq와 같은 Firebase 프로젝트(`pkmq-quiz-4431`)의 Firestore를 쓰되, 컬렉션은 따로(`sudoku_scores`) 둔다.
-pkmq의 `scores` 규칙이 점수 1~500 · 세대 0~9만 허용해서 같은 컬렉션을 쓸 수 없기 때문이다.
-
-**규칙을 추가하기 전에는 기록이 그 기기에만 저장된다.** 규칙을 추가하면 그동안 쌓인 기록은 랭킹을 열 때 자동으로 올라간다.
-
-Firebase 콘솔 → Firestore Database → 규칙에서, 기존 `match /scores/{doc} { ... }` 블록 **옆에** 아래를 추가하고 게시한다.
-
-```text
-match /sudoku_scores/{doc} {
-  allow read: if true;
-  allow create: if request.resource.data.keys().hasOnly(['n', 's', 'l', 'h', 'd'])
-    && request.resource.data.n is string
-    && request.resource.data.n.size() >= 1 && request.resource.data.n.size() <= 12
-    && request.resource.data.s is int
-    && request.resource.data.s >= 1 && request.resource.data.s <= 35999
-    && request.resource.data.l in ['a1', 'a2', 'b1', 'b2', 'c1', 'c2', 'c3']
-    && request.resource.data.h is int
-    && request.resource.data.h >= 0 && request.resource.data.h <= 99
-    && request.resource.data.d is string && request.resource.data.d.size() == 10;
-  allow delete: if true;   // 🏆 3연타 초기화용 (pkmq와 동일)
-  allow update: if false;
-}
-```
-
-| 필드 | 뜻 |
-| --- | --- |
-| `n` | 이름 (12자 이하) |
-| `s` | 기록(초) |
-| `l` | 난이도 id (`a1`~`c3`) |
-| `h` | 힌트 사용 횟수 |
-| `d` | 날짜 `YYYY-MM-DD` |
-
-랭킹 화면 제목의 🏆를 1.5초 안에 3번 누르면 보고 있는 난이도의 기록을 지울 수 있다 (부모용 숨은 기능).
 
 ## 포켓몬 바꾸기
 

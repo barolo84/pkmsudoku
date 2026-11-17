@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gaegu:wght@400;700&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=1" />
+    <link rel="stylesheet" href="style.css?v=2" />
 </head>
 
 <body>
@@ -51,7 +51,6 @@
 
             <footer class="home-foot">
                 <button class="chunky" id="open-book"><span aria-hidden="true">📖</span> 도감 <b id="book-count">0/72</b></button>
-                <button class="chunky" id="open-rank"><span aria-hidden="true">🏆</span> 랭킹</button>
                 <div class="seg" role="group" aria-label="칸에 보이는 모양">
                     <button id="mode-pic" aria-pressed="true">그림</button>
                     <button id="mode-num" aria-pressed="false">숫자</button>
@@ -107,30 +106,22 @@
                 <div class="stamp" id="stamp" aria-hidden="true"><span>참</span><span>잘했어요</span></div>
                 <h2 class="clear-h" id="clear-h">다 붙였다!</h2>
                 <div class="stars" id="stars" role="img"></div>
-                <p class="clear-time"><b id="clear-time">0:00</b><span class="best-tag" id="best-tag" hidden>내 최고 기록!</span></p>
                 <p class="clear-detail" id="clear-detail"></p>
             </div>
 
             <div class="rewards" id="rewards-box">
                 <h3 id="rewards-h">새 친구가 도감에 붙었어!</h3>
                 <div class="reward-row" id="rewards"></div>
-            </div>
-
-            <form class="save" id="save-form" autocomplete="off">
-                <label for="name-input">이름을 적고 기록을 남겨요</label>
-                <div class="save-row">
-                    <input id="name-input" type="text" maxlength="12" placeholder="내 이름" enterkeyhint="done" />
-                    <button class="chunky primary" id="save-btn" type="submit">기록 남기기</button>
+                <div class="book-meter">
+                    <span aria-hidden="true">📖</span>
+                    <div class="meter" id="meter" role="img"><i id="meter-fill"></i></div>
+                    <p aria-hidden="true"><b id="meter-have">0</b> / <span id="meter-total">72</span></p>
                 </div>
-            </form>
-            <div class="saved" id="saved" hidden>
-                <p class="saved-msg" id="saved-msg"></p>
-                <ol class="rank-list" id="clear-rank"></ol>
-                <p class="rank-src" id="clear-rank-src"></p>
             </div>
 
             <div class="clear-actions">
                 <button class="chunky primary big" id="again-btn">한 판 더!</button>
+                <button class="chunky" id="clear-book"><span aria-hidden="true">📖</span> 도감 보기</button>
                 <button class="chunky" id="clear-home">다른 판 고르기</button>
             </div>
         </section>
@@ -150,36 +141,15 @@
             <p class="page-note" id="book-note"></p>
             <div class="book" id="book-body"></div>
         </section>
-
-        <!-- ===== 랭킹 ===== -->
-        <section id="rank" class="view page" hidden>
-            <header class="page-top">
-                <button class="icon-btn" data-home aria-label="처음으로">
-                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-                        <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.2"
-                            stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
-                <h2><span id="trophy">🏆</span> 랭킹</h2>
-            </header>
-            <div class="rank-tabs" id="rank-tabs" role="tablist" aria-label="난이도"></div>
-            <div class="reset-row" id="reset-row" hidden>
-                <p id="reset-msg"></p>
-                <button class="chunky danger" id="reset-yes">지우기</button>
-                <button class="chunky" id="reset-no">그만두기</button>
-            </div>
-            <ol class="rank-list" id="rank-list"></ol>
-            <p class="rank-src" id="rank-src"></p>
-        </section>
     </main>
 
     <div class="ghost" id="ghost" aria-hidden="true"></div>
     <canvas id="confetti" aria-hidden="true"></canvas>
 
-    <script src="engine.js?v=1"></script>
-    <script src="records.js?v=1"></script>
-    <script src="data.js?v=1"></script>
-    <script src="app.js?v=1"></script>
+    <script src="engine.js?v=2"></script>
+    <script src="records.js?v=2"></script>
+    <script src="data.js?v=2"></script>
+    <script src="app.js?v=2"></script>
 </body>
 
 </html>

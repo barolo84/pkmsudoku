@@ -1,5 +1,5 @@
 // 포켓몬 스도쿠 — 화면 동작
-// 순수 로직은 engine.js(스도쿠)와 records.js(기록)에 있고, 여기는 화면·입력·저장만 다룬다.
+// 순수 로직은 engine.js(스도쿠)와 records.js(시간·별·도감 보상)에 있고, 여기는 화면·입력·저장만 다룬다.
 (function () {
     'use strict';
 
@@ -81,7 +81,7 @@
     })();
 
     // ===== 화면 전환 (처음 화면이 바닥, 나머지는 한 칸 위) =====
-    const VIEWS = ['home', 'game', 'clear', 'book', 'rank'];
+    const VIEWS = ['home', 'game', 'clear', 'book'];
     let view = 'home';
 
     function setView(name) {
@@ -107,7 +107,6 @@
         if (v === view) return;
         if (v === 'game' && game && !game.done) { setView('game'); layoutGame(); startClock(); return; }
         if (v === 'book') { renderBook(); setView('book'); return; }
-        if (v === 'rank') { setView('rank'); openRank(rankLevel); return; }
         try { if (v !== 'home') history.replaceState({ v: 'home' }, ''); } catch (err) { }
         renderHome();
         setView('home');
@@ -208,7 +207,6 @@
         sfx.place();
     });
     $('open-book').addEventListener('click', () => { sfx.tap(); renderBook(); show('book'); });
-    $('open-rank').addEventListener('click', () => { sfx.tap(); show('rank'); openRank(rankLevel); });
     document.querySelectorAll('[data-home]').forEach(b => b.addEventListener('click', () => { sfx.tap(); goHome(); }));
 
     // ===== 게임 상태 =====
@@ -219,7 +217,7 @@
     let memo = false;     // 메모 모드
     let hint = null;      // 반짝이고 있는 힌트 { idx, value, reason }
     let paused = false;
-    let result = null;    // 마지막으로 끝낸 판의 결과
+    let result = null;    // 마지막으로 끝낸 판의 결과 (완성 화면용)
 
     const syms = () => teamOf(game.team).members.slice(0, game.size);
     const symName = v => (mode === 'pic' ? syms()[v - 1].name : String(v));
@@ -734,15 +732,17 @@
         stopClock();
         store.del('game');
         const { level, size, ms, hints, mistakes } = game;
-        const final = R.finalSeconds(ms / 1000, hints, mistakes), st = R.stars(hints, mistakes);
+        const secs = R.elapsedSeconds(ms), st = R.stars(hints, mistakes);
         const prev = best[level];
-        const isBest = !prev || final < prev.s;
-        best[level] = { s: isBest ? final : prev.s, st: Math.max(st, prev ? prev.st : 0) };
+        const isBest = !prev || secs < prev.s;
+        best[level] = { s: isBest ? secs : prev.s, st: Math.max(st, prev ? prev.st : 0) };
         store.setJson('best', best);
+        // 보상: 함께 논 팀의 친구가 도감에 붙는다 (이 게임의 목표)
+        const before = caught.size;
         const rewards = R.pickRewards(ROSTER, [...caught], R.rewardCount(size), Math.random, syms().map(m => m.id));
         rewards.forEach(id => caught.add(id));
         store.setJson('caught', [...caught]);
-        result = { level, size, ms, hints, mistakes, final, st, isBest: isBest && !!prev, rewards, saved: false, entry: null };
+        result = { level, size, secs, hints, mistakes, st, isBest: isBest && !!prev, rewards, before };
 
         sel = -1; armed = 0; setHint(null);
         refresh();
@@ -767,207 +767,38 @@
         $('clear-h').textContent = r.st === 3 ? '완벽해!' : r.st === 2 ? '참 잘했어!' : '끝까지 해냈어!';
         $('stars').innerHTML = [0, 1, 2].map(i => `<span class="${i < r.st ? 'on' : ''}" style="--i:${i}">★</span>`).join('');
         $('stars').setAttribute('aria-label', `별 ${r.st}개`);
-        $('clear-time').textContent = R.formatTime(r.final);
-        $('best-tag').hidden = !r.isBest;
         $('clear-detail').innerHTML = [
             `${SIZE_INFO[r.size].label} ${LEVEL_INFO[r.level].name}`,
-            `걸린 시간 ${R.formatTime(r.ms / 1000)}`,
-            r.hints ? `힌트 ${r.hints}번 +${r.hints * R.HINT_PENALTY}초` : '',
-            r.mistakes ? `앗! ${r.mistakes}번 +${r.mistakes * R.MISTAKE_PENALTY}초` : '',
-        ].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('');
+            `⏱ ${R.formatTime(r.secs)}`,
+            r.hints ? `힌트 ${r.hints}번` : '',
+            r.mistakes ? `앗! ${r.mistakes}번` : '',
+        ].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('')
+            + (r.isBest ? '<span class="best-tag">내 최고 기록!</span>' : '');
 
-        const all = caught.size === ROSTER.length;
+        const total = ROSTER.length;
         $('rewards-h').textContent = r.rewards.length ? '새 친구가 도감에 붙었어!' : '도감을 모두 모았어! 👑';
         $('rewards').hidden = !r.rewards.length;
+        $('rewards').dataset.n = r.rewards.length;
         $('rewards').innerHTML = r.rewards.map((id, i) =>
             `<div class="reward" style="--i:${i}"><img class="stk" src="${imgSrc(id)}" alt=""><span>${esc(POKE[id].name)}</span></div>`).join('');
-        $('rewards-box').hidden = !r.rewards.length && !all;
         if (r.rewards.length) setTimeout(() => { if (view === 'clear') sfx.reward(); }, reducedMotion ? 0 : 1000);
 
-        $('save-form').hidden = false;
-        $('saved').hidden = true;
-        $('save-btn').disabled = false;
-        $('save-btn').textContent = '기록 남기기';
-        $('name-input').value = store.get('name', '');
+        // 도감이 얼마나 찼는지: 방금 붙은 만큼 차오른다
+        const fill = $('meter-fill');
+        fill.style.transition = 'none';
+        fill.style.transform = `scaleX(${r.before / total})`;
+        void fill.offsetWidth;
+        fill.style.transition = '';
+        fill.style.transform = `scaleX(${caught.size / total})`;
+        $('meter-have').textContent = caught.size;
+        $('meter-total').textContent = total;
+        $('meter').setAttribute('aria-label', `도감 ${total}마리 중 ${caught.size}마리`);
     }
 
     $('again-btn').addEventListener('click', () => { sfx.place(); startGame(result ? result.level : 'a1'); });
     $('clear-home').addEventListener('click', () => { sfx.tap(); goHome(); });
 
-    $('save-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const r = result;
-        if (!r || r.saved) return;
-        r.saved = true;
-        const entry = R.makeEntry({ name: $('name-input').value, seconds: r.final, level: r.level, hints: r.hints, date: new Date() });
-        store.set('name', entry.n);
-        $('name-input').blur();
-        $('save-btn').disabled = true;
-        $('save-btn').textContent = '남기는 중…';
-        const shared = await ranks.add(entry);
-        if (result !== r) return;
-        r.entry = entry;
-        $('save-form').hidden = true;
-        $('saved').hidden = false;
-        $('saved-msg').textContent = '기록을 남겼어!';
-        const board = await renderRank($('clear-rank'), $('clear-rank-src'), r.level, entry);
-        if (result !== r || !board) return;
-        const mine = board.rows.find(row => R.sameEntry(row, entry));
-        if (mine) $('saved-msg').textContent = `🏆 ${mine.rank}등이야!`;
-        if (!shared) $('clear-rank-src').textContent = '인터넷에 올리지 못해 이 기기에 저장했어요. 연결되면 자동으로 올라가요.';
-        sfx.unit();
-    });
-
-    // ===== 랭킹 (pkmq와 같은 Firebase 프로젝트, 별도 컬렉션) — 실패하면 이 기기 기록으로 =====
-    const ranks = (() => {
-        const CONFIG = {
-            apiKey: 'AIzaSyCBqF6d7U1S_IZYq2TPqlmNki8-rR-_GF8',
-            authDomain: 'pkmq-quiz-4431.firebaseapp.com',
-            projectId: 'pkmq-quiz-4431',
-            appId: '1:425974369773:web:52f33cf07615c9c4456be4',
-        };
-        const COLLECTION = 'sudoku_scores';
-        const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
-        const WAIT = 8000;
-        let dbPromise = null, flushing = false;
-
-        const loadScript = src => new Promise((ok, fail) => {
-            const s = document.createElement('script');
-            s.src = src; s.onload = ok; s.onerror = fail;
-            document.head.append(s);
-        });
-        const within = (p, ms) => Promise.race([p, new Promise((_, fail) => setTimeout(() => fail(new Error('timeout')), ms))]);
-
-        // 게임 시작을 늦추지 않도록 Firebase는 랭킹이 필요할 때 처음 불러온다
-        function db() {
-            if (!dbPromise) {
-                dbPromise = (async () => {
-                    await loadScript(SDK + 'firebase-app-compat.js');
-                    await loadScript(SDK + 'firebase-firestore-compat.js');
-                    window.firebase.initializeApp(CONFIG);
-                    return window.firebase.firestore();
-                })();
-                dbPromise.catch(() => { dbPromise = null; });
-            }
-            return dbPromise;
-        }
-
-        const local = () => store.json('board', []).filter(e => e && typeof e === 'object');
-        const saveLocal = list => store.setJson('board', list.slice(-300));
-        const clean = e => ({ n: e.n, s: e.s, l: e.l, h: e.h, d: e.d });
-
-        // 인터넷에 올리지 못했던 기록(p 표시)을 뒤늦게 올린다
-        async function flush(d) {
-            if (flushing) return;
-            flushing = true;
-            try {
-                const list = local();
-                for (const e of list) {
-                    if (!e.p || !R.isValidEntry(clean(e))) continue;
-                    await within(d.collection(COLLECTION).add(clean(e)), WAIT);
-                    delete e.p;
-                    saveLocal(list);
-                }
-            } catch (err) { } finally { flushing = false; }
-        }
-
-        return {
-            // 올리는 데 성공했는지 돌려준다. 실패해도 이 기기에는 남는다.
-            async add(entry) {
-                let shared = false;
-                try {
-                    const d = await within(db(), WAIT);
-                    await within(d.collection(COLLECTION).add(entry), WAIT);
-                    shared = true;
-                } catch (err) { }
-                const list = local();
-                list.push(shared ? entry : { ...entry, p: 1 });
-                saveLocal(list);
-                return shared;
-            },
-            async fetch(level) {
-                try {
-                    const d = await within(db(), WAIT);
-                    // 난이도 하나만 조건으로 걸어 복합 색인이 필요 없게 하고, 정렬은 화면에서 한다
-                    const snap = await within(d.collection(COLLECTION).where('l', '==', level).limit(500).get({ source: 'server' }), WAIT);
-                    const waiting = local().filter(e => e.p && e.l === level);
-                    flush(d);
-                    return { entries: R.mergeEntries(snap.docs.map(x => x.data()), waiting), shared: true };
-                } catch (err) {
-                    return { entries: local().filter(e => e.l === level), shared: false };
-                }
-            },
-            async reset(level) {
-                try {
-                    const d = await within(db(), WAIT);
-                    const snap = await within(d.collection(COLLECTION).where('l', '==', level).limit(500).get({ source: 'server' }), WAIT);
-                    const batch = d.batch();
-                    snap.docs.forEach(x => batch.delete(x.ref));
-                    await within(batch.commit(), WAIT);
-                } catch (err) { }
-                saveLocal(local().filter(e => e.l !== level));
-            },
-        };
-    })();
-
-    const MEDALS = ['🥇', '🥈', '🥉'];
-    const rankTokens = new WeakMap(); // 늦게 도착한 응답이 새 목록을 덮어쓰지 않도록
-
-    async function renderRank(listEl, srcEl, level, me) {
-        const token = {};
-        rankTokens.set(listEl, token);
-        listEl.innerHTML = '<li class="rank-empty">불러오는 중…</li>';
-        srcEl.textContent = '';
-        const { entries, shared } = await ranks.fetch(level);
-        if (rankTokens.get(listEl) !== token) return null;
-        const rows = R.rankBoard(entries, level);
-        listEl.innerHTML = rows.length ? rows.map(r => `
-            <li class="rank-row${me && R.sameEntry(r, me) ? ' me' : ''}">
-                <span class="rank-no${r.rank <= 3 ? ' medal' : ''}">${MEDALS[r.rank - 1] || r.rank}</span>
-                <span class="rank-name">${esc(r.n)}${r.h ? `<small>💡${r.h}</small>` : ''}</span>
-                <span class="rank-time">${R.formatTime(r.s)}</span>
-                <span class="rank-date">${esc(r.d.slice(5).replace('-', '.'))}</span>
-            </li>`).join('')
-            : '<li class="rank-empty">아직 기록이 없어.<br>첫 번째 주인공이 되어 봐!</li>';
-        srcEl.textContent = shared ? '모든 기기의 기록을 함께 보여줘요.' : '지금은 이 기기에 저장된 기록만 보여요.';
-        return { rows, shared };
-    }
-
-    let rankLevel = 'a1';
-    function openRank(level) {
-        rankLevel = E.getLevel(level) ? level : 'a1';
-        $('reset-row').hidden = true;
-        $('rank-tabs').innerHTML = E.LEVELS.map(l => `
-            <button class="rank-tab" role="tab" aria-selected="${l.id === rankLevel}" data-level="${l.id}">
-                <b>${SIZE_INFO[l.size].label}</b><small>${LEVEL_INFO[l.id].name}</small>
-            </button>`).join('');
-        const on = $('rank-tabs').querySelector('[aria-selected="true"]');
-        if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
-        renderRank($('rank-list'), $('rank-src'), rankLevel, result && result.entry);
-    }
-    $('rank-tabs').addEventListener('click', e => {
-        const tab = e.target.closest('.rank-tab');
-        if (tab) { sfx.tap(); openRank(tab.dataset.level); }
-    });
-
-    // 숨은 기능(부모용): 🏆를 1.5초 안에 3번 누르면 이 난이도의 랭킹 지우기
-    let trophyTaps = 0, trophyTimer = 0;
-    $('trophy').addEventListener('click', () => {
-        trophyTaps++;
-        clearTimeout(trophyTimer);
-        trophyTimer = setTimeout(() => { trophyTaps = 0; }, 1500);
-        if (trophyTaps < 3) return;
-        trophyTaps = 0;
-        $('reset-msg').textContent = `'${SIZE_INFO[E.getLevel(rankLevel).size].label} ${LEVEL_INFO[rankLevel].name}' 랭킹을 모두 지울까요?`;
-        $('reset-row').hidden = false;
-    });
-    $('reset-no').addEventListener('click', () => { $('reset-row').hidden = true; });
-    $('reset-yes').addEventListener('click', async () => {
-        $('reset-row').hidden = true;
-        $('rank-list').innerHTML = '<li class="rank-empty">지우는 중…</li>';
-        await ranks.reset(rankLevel);
-        openRank(rankLevel);
-    });
+    $('clear-book').addEventListener('click', () => { sfx.tap(); renderBook(); show('book'); });
 
     // ===== 도감 =====
     function renderBook() {
