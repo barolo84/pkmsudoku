@@ -2,6 +2,8 @@
 
 포켓몬 스티커를 붙이며 푸는 어린이 스도쿠. 빌드 없이 돌아가는 정적 웹페이지라서 폰·태블릿·PC 브라우저 어디서나 열린다.
 
+**▶ 바로 하기: <https://barolo84.github.io/pkmsudoku/>**
+
 <p>
   <img src="docs/home.png" width="240" alt="처음 화면" />
   <img src="docs/game.png" width="240" alt="6칸 판" />
@@ -25,7 +27,7 @@
 ### 난이도
 
 | Lv | 이름 | 판 | 빈칸 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | 첫걸음 | 4×4 | 6 |
 | 2 | 한 걸음 더 | 4×4 | 9 |
 | 3 | 모험 시작 | 6×6 | 14 |
@@ -44,7 +46,7 @@
 ## 파일
 
 | 파일 | 내용 |
-|---|---|
+| --- | --- |
 | `index.html` / `style.css` | 화면 (스티커북 콘셉트, `.impeccable.md`에 디자인 기준) |
 | `app.js` | 화면 동작: 입력, 저장, 랭킹 통신 |
 | `engine.js` | 스도쿠 로직: 퍼즐 생성, 풀이, 힌트 (화면과 무관) |
@@ -64,8 +66,8 @@ node --test                   # 로직 테스트 38개
 
 ## 배포 (GitHub Pages)
 
-pkmq와 같은 방식이다. 저장소를 GitHub에 올리고 Settings → Pages에서 `main` 브랜치 `/ (root)`를 고르면
-`https://<계정>.github.io/<저장소>/` 로 열린다. iPad/iPhone은 공유 → "홈 화면에 추가"로 앱처럼 쓸 수 있다.
+pkmq와 같은 방식이다. `main` 브랜치에 push하면 GitHub Pages(`main` 브랜치 `/ (root)`)가 1~2분 안에
+<https://barolo84.github.io/pkmsudoku/> 에 반영한다. iPad/iPhone은 공유 → "홈 화면에 추가"로 앱처럼 쓸 수 있다.
 
 ## 온라인 랭킹 켜기 (한 번만)
 
@@ -76,7 +78,7 @@ pkmq의 `scores` 규칙이 점수 1~500 · 세대 0~9만 허용해서 같은 컬
 
 Firebase 콘솔 → Firestore Database → 규칙에서, 기존 `match /scores/{doc} { ... }` 블록 **옆에** 아래를 추가하고 게시한다.
 
-```
+```text
 match /sudoku_scores/{doc} {
   allow read: if true;
   allow create: if request.resource.data.keys().hasOnly(['n', 's', 'l', 'h', 'd'])
@@ -94,7 +96,7 @@ match /sudoku_scores/{doc} {
 ```
 
 | 필드 | 뜻 |
-|---|---|
+| --- | --- |
 | `n` | 이름 (12자 이하) |
 | `s` | 기록(초) |
 | `l` | 난이도 id (`a1`~`c3`) |
