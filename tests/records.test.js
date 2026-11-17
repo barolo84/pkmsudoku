@@ -39,10 +39,10 @@ test('hintLimit: 한 판에 쓸 수 있는 힌트 — 4칸 2개, 6칸 3개, 9칸
     assert.equal(R.hintLimit(9), 5);
 });
 
-test('rewardCount: 큰 판일수록 친구를 더 많이', () => {
+test('rewardCount: 어떤 판이든 한 판에 한 마리', () => {
     assert.equal(R.rewardCount(4), 1);
-    assert.equal(R.rewardCount(6), 2);
-    assert.equal(R.rewardCount(9), 3);
+    assert.equal(R.rewardCount(6), 1);
+    assert.equal(R.rewardCount(9), 1);
 });
 
 test('pickRewards: 아직 없는 친구 중에서, 함께 논 팀을 먼저', () => {

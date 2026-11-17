@@ -6,7 +6,7 @@
 }(typeof self !== 'undefined' ? self : this, function (Engine) {
     'use strict';
 
-    const REWARDS_BY_SIZE = { 4: 1, 6: 2, 9: 3 };
+    const REWARDS_BY_SIZE = { 4: 1, 6: 1, 9: 1 };  // 한 판을 완성하면 도감에 붙는 수 (어떤 판이든 한 마리)
     const HINTS_BY_SIZE = { 4: 2, 6: 3, 9: 5 };   // 한 판에 쓸 수 있는 힌트 수
 
     function elapsedSeconds(ms) {
