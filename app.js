@@ -30,6 +30,7 @@
     let muted = store.get('mute', '0') === '1';
     const caught = new Set(store.json('caught', []).filter(id => POKE[id]));
     const poolHave = level => POOLS[level].filter(id => caught.has(id)).length; // 그 난이도 친구 중 모은 수
+    const shiny = new Set(store.json('shiny', []).filter(id => caught.has(id))); // 별 3개로 얻은 반짝이 친구
     const best = store.json('best', {});                             // { 난이도: { s: 초, st: 별 } }
 
     // ===== 말 다듬기 =====
@@ -229,6 +230,9 @@
         ? `<img src="${imgSrc(syms()[v - 1].id)}" alt="" draggable="false">`
         : `<span class="digit">${v}</span>`);
     const leftOf = v => game.size - game.grid.reduce((n, x) => n + (x === v), 0);
+    // 틀려도 되는 횟수 = 이 판의 빈칸 수. 음수가 되면 포켓몬이 도망간 것
+    const blanksOf = g => g.puzzle.reduce((n, x) => n + (x === 0), 0);
+    const chances = () => R.chancesLeft(blanksOf(game), game.mistakes);
     const tintStyle = v => `--tint:var(--t${v});--dig:var(--d${v})`;
 
     function loadSaved() {
@@ -262,7 +266,7 @@
         const s = loadSaved();
         if (!s) { renderResume(); return; }
         game = { ...s, done: false };
-        enterGame('이어서 해 보자!');
+        enterGame(chances() < 0 ? '포켓몬은 도망갔어. 끝까지 해 볼까?' : '이어서 해 보자!');
     }
     function enterGame(firstWords) {
         sel = -1; armed = 0; memo = false; paused = false; result = null;
@@ -275,9 +279,11 @@
         $('buddy-img').src = imgSrc(syms()[0].id);
         $('pause').hidden = true;
         $('leave').hidden = true;
+        $('fled').hidden = true;
         $('t-memo').hidden = game.size === 4;
         $('t-memo').setAttribute('aria-pressed', 'false');
         updateHintButton();
+        updateBalls();
         show('game');
         layoutGame();
         refresh();
@@ -486,7 +492,7 @@
     window.addEventListener('pagehide', saveGame);
 
     function setPaused(on) {
-        if (!game || game.done || !$('leave').hidden) return;
+        if (!game || game.done || !$('leave').hidden || !$('fled').hidden) return;
         paused = on;
         $('pause').hidden = !on;
         $('g-timer').querySelector('.timer-ico').textContent = on ? '▶' : '⏸';
@@ -503,6 +509,7 @@
         if (!$('leave').hidden) { closeLeave(); return; }
         paused = true;
         $('pause').hidden = true;
+        $('fled').hidden = true;
         $('leave').hidden = false;
         saveGame();
         endDrag();
@@ -527,6 +534,35 @@
         goHome();
     });
 
+    // ----- 틀려도 되는 횟수: 빈칸 수만큼은 괜찮고, 그보다 더 틀리면 포켓몬이 도망간다 -----
+    function updateBalls() {
+        const el = $('balls'), left = chances();
+        el.classList.toggle('low', left >= 0 && left <= 2);
+        el.classList.toggle('last', left === 0);
+        el.classList.toggle('fled', left < 0);
+        $('balls-n').textContent = left < 0 ? '💨' : left;
+        el.setAttribute('aria-label', left < 0 ? '포켓몬이 도망갔어요'
+            : left === 0 ? '몬스터볼을 다 썼어요. 한 번 더 틀리면 포켓몬이 도망가요'
+                : `몬스터볼 ${left}개. ${left}번까지 틀려도 괜찮아요`);
+    }
+    function showFled() { // 판 위를 덮고, 새 판으로 다시 할지 이 판을 끝까지 풀지 고른다
+        if (!game || game.done || view !== 'game') return;
+        paused = true;
+        $('pause').hidden = true;
+        $('leave').hidden = true;
+        $('fled-p').textContent = `${blanksOf(game)}번보다 많이 틀려서 이번엔 못 잡았어.`;
+        $('fled').hidden = false;
+        endDrag();
+        saveGame();
+    }
+    function closeFled() {
+        $('fled').hidden = true;
+        paused = false;
+        lastTick = performance.now();
+    }
+    $('fled-again').addEventListener('click', () => { sfx.place(); startGame(game.level); });
+    $('fled-stay').addEventListener('click', () => { sfx.tap(); closeFled(); say('좋아, 끝까지 해 보자!'); });
+
     // ===== 스티커 붙이기 =====
     const UNIT_NAME = { row: '가로줄', col: '세로줄', box: '상자' };
 
@@ -544,9 +580,21 @@
             sfx.wrong();
             if (navigator.vibrate) { try { navigator.vibrate(50); } catch (e) { } }
             const name = symName(v); // 이름이 길면 말풍선 두 줄에 들어가도록 '같은'을 뺀다
-            say(hits.length
+            const why = hits.length
                 ? `${name.length > 3 ? '' : '같은 '}${UNIT_NAME[hits[0].unit]}에 ${josa(name, '이', '가')} 있어!`
-                : '음… 거긴 아니야. 다시!', true);
+                : '음… 거긴 아니야. 다시!';
+            const left = chances();
+            updateBalls();
+            flash($('balls'), 'used', 600);
+            if (left === -1) { // 방금 도망갔다: 틀린 이유를 잠깐 보여 준 뒤 판을 덮는다
+                say('포켓몬이 도망갔어!', true);
+                setTimeout(showFled, reducedMotion ? 200 : 900);
+            } else {
+                say(why, true);
+                if (left === 0) setTimeout(() => { // 이유를 읽을 시간을 준 뒤 경고
+                    if (game && !game.done && chances() === 0 && $('buddy-say').textContent === why) say('또 틀리면 도망가!', true);
+                }, 1600);
+            }
             saveGame();
             return;
         }
@@ -747,6 +795,7 @@
         if (view !== 'game' || !game || game.done || e.metaKey || e.ctrlKey || e.altKey) return;
         const k = e.key, size = game.size;
         if (!$('leave').hidden) { if (k === 'Escape') closeLeave(); return; }
+        if (!$('fled').hidden) { if (k === 'Escape') closeFled(); return; }
         if (k === ' ' || k === 'p' || k === 'P') { e.preventDefault(); setPaused(!paused); return; }
         if (paused) return;
         const step = { ArrowUp: -size, ArrowDown: size, ArrowLeft: -1, ArrowRight: 1 }[k];
@@ -783,12 +832,21 @@
         const isBest = !prev || secs < prev.s;
         best[level] = { s: isBest ? secs : prev.s, st: Math.max(st, prev ? prev.st : 0) };
         store.setJson('best', best);
-        // 보상: 이 난이도에 정해진 친구들 중에서 도감에 붙는다 (함께 논 팀의 친구가 있으면 먼저)
-        const poolBefore = poolHave(level);
-        const rewards = R.pickRewards(POOLS[level], [...caught], R.rewardCount(size), Math.random, syms().map(m => m.id));
-        rewards.forEach(id => caught.add(id));
+        // 보상: 이 난이도에 정해진 친구들 중에서 도감에 붙는다 (함께 논 팀의 친구가 있으면 먼저).
+        // 빈칸 수보다 많이 틀렸으면 없고, 별 3개면 반짝이 (records.js의 clearReward)
+        const poolBefore = poolHave(level), blanks = blanksOf(game);
+        const out = R.clearReward({
+            pool: POOLS[level], caught: [...caught], shiny: [...shiny], size, hints, mistakes, blanks,
+            rng: Math.random, prefer: syms().map(m => m.id),
+        });
+        out.caught.forEach(id => caught.add(id));
+        out.shiny.forEach(id => shiny.add(id));
         store.setJson('caught', [...caught]);
-        result = { level, size, secs, hints, mistakes, st, isBest: isBest && !!prev, rewards, poolBefore };
+        store.setJson('shiny', [...shiny]);
+        result = {
+            level, size, secs, hints, mistakes, st, isBest: isBest && !!prev, blanks, poolBefore,
+            fled: out.fled, rewards: out.caught, shinyIds: out.shiny,
+        };
 
         sel = -1; armed = 0; setHint(null);
         refresh();
@@ -823,15 +881,31 @@
 
         const total = POOLS[r.level].length, have = poolHave(r.level);
         const next = E.LEVELS.find(l => poolHave(l.id) < POOLS[l.id].length); // 아직 친구가 남은 가장 쉬운 판
-        $('rewards-h').textContent = r.rewards.length ? '새 친구가 도감에 붙었어!'
-            : next ? '이 판 친구는 다 모았어!' : '도감을 모두 모았어! 👑';
-        $('rewards-sub').hidden = !!r.rewards.length || !next;
-        if (next) $('rewards-sub').textContent = `'${LEVEL_INFO[next.id].name}' 판에 새 친구가 있어`;
-        $('rewards').hidden = !r.rewards.length;
-        $('rewards').dataset.n = r.rewards.length;
-        $('rewards').innerHTML = r.rewards.map((id, i) =>
-            `<div class="reward" style="--i:${i}"><img class="stk" src="${imgSrc(id)}" alt=""><span>${esc(POKE[id].name)}</span></div>`).join('');
-        if (r.rewards.length) setTimeout(() => { if (view === 'clear') sfx.reward(); }, reducedMotion ? 0 : 1000);
+        const shown = r.rewards.length ? r.rewards : r.shinyIds; // 새로 붙은 친구, 또는 반짝이로 바뀐 친구
+        const tip = '힌트도 실수도 없이 깨면 반짝이 친구!';
+        let head, sub = '';
+        if (r.fled) {
+            head = '포켓몬이 도망갔어… 💨';
+            sub = `${r.blanks}번까지만 틀리면 잡을 수 있어. 다시 해 보자!`;
+        } else if (r.rewards.length) {
+            head = r.shinyIds.length ? '반짝이 친구가 붙었어! ✨' : '새 친구가 도감에 붙었어!';
+            if (!r.shinyIds.length) sub = tip;
+        } else if (r.shinyIds.length) {
+            head = `${josa(POKE[r.shinyIds[0]].name, '이', '가')} 반짝반짝! ✨`;
+            sub = '힌트도 실수도 없이 깨서 반짝이로 바뀌었어';
+        } else {
+            head = next ? '이 판 친구는 다 모았어!' : '도감을 모두 모았어! 👑';
+            sub = next ? `'${LEVEL_INFO[next.id].name}' 판에 새 친구가 있어`
+                : POOLS[r.level].some(id => !shiny.has(id)) ? '힌트도 실수도 없이 깨면 친구가 반짝이로 바뀌어!' : '이 판 친구는 모두 반짝이야! ✨';
+        }
+        $('rewards-h').textContent = head;
+        $('rewards-sub').hidden = !sub;
+        $('rewards-sub').textContent = sub;
+        $('rewards').hidden = !shown.length;
+        $('rewards').dataset.n = shown.length;
+        $('rewards').innerHTML = shown.map((id, i) =>
+            `<div class="reward${r.shinyIds.includes(id) ? ' shiny' : ''}" style="--i:${i}"><img class="stk" src="${imgSrc(id)}" alt=""><span>${esc(POKE[id].name)}</span></div>`).join('');
+        if (shown.length) setTimeout(() => { if (view === 'clear') sfx.reward(); }, reducedMotion ? 0 : 1000);
 
         // 이 판의 친구를 얼마나 모았는지: 방금 붙은 만큼 차오른다
         const fill = $('meter-fill');
@@ -856,14 +930,15 @@
         $('book-reset').hidden = true;
         $('book-have').textContent = caught.size;
         $('book-total').textContent = ROSTER.length;
-        $('book-note').textContent = caught.size === ROSTER.length ? '모든 친구를 모았어! 👑'
-            : '판마다 만나는 친구가 달라요. 어려운 판일수록 귀한 친구!';
+        $('book-note').textContent = (caught.size === ROSTER.length ? '모든 친구를 모았어! 👑 이제 반짝이를 모아 볼까?'
+            : '판마다 만나는 친구가 달라요. 어려운 판일수록 귀한 친구!')
+            + (shiny.size ? ` 반짝이 ${shiny.size}마리 ✨` : ' 힌트도 실수도 없이 깨면 반짝이 ✨');
         $('book-body').innerHTML = E.LEVELS.map(l => {
-            const info = LEVEL_INFO[l.id], pool = POOLS[l.id];
+            const info = LEVEL_INFO[l.id], pool = POOLS[l.id], shinyN = pool.filter(id => shiny.has(id)).length;
             return `<section class="book-team">
-                <h3><span class="book-lv" aria-hidden="true">${info.lv}</span>${esc(info.name)} <small>${SIZE_INFO[l.size].label} · ${poolHave(l.id)}/${pool.length}</small></h3>
+                <h3><span class="book-lv" aria-hidden="true">${info.lv}</span>${esc(info.name)} <small>${SIZE_INFO[l.size].label} · ${poolHave(l.id)}/${pool.length}${shinyN ? ` · ✨${shinyN}` : ''}</small></h3>
                 <div class="book-grid">${pool.map(id => caught.has(id)
-                ? `<div class="slot"><img class="stk" src="${imgSrc(id)}" alt="" loading="lazy"><span>${esc(POKE[id].name)}</span></div>`
+                ? `<div class="slot${shiny.has(id) ? ' shiny' : ''}"><img class="stk" src="${imgSrc(id)}" alt="" loading="lazy"><span>${esc(POKE[id].name)}${shiny.has(id) ? '<span class="sr-only"> (반짝이)</span>' : ''}</span></div>`
                 : `<div class="slot blank"><img src="${imgSrc(id)}" alt="" loading="lazy"><span>?</span></div>`).join('')}</div>
             </section>`;
         }).join('');
@@ -881,9 +956,11 @@
         $('book-reset').scrollIntoView({ block: 'nearest' });
     });
     $('book-reset-no').addEventListener('click', () => { $('book-reset').hidden = true; });
-    $('book-reset-yes').addEventListener('click', () => { // 모은 친구와 별을 모두 지운다 (하던 판은 그대로)
+    $('book-reset-yes').addEventListener('click', () => { // 모은 친구·반짝이·별을 모두 지운다 (하던 판은 그대로)
         caught.clear();
         store.del('caught');
+        shiny.clear();
+        store.del('shiny');
         for (const level in best) delete best[level];
         store.del('best');
         renderBook();
@@ -938,9 +1015,12 @@
                     <p>빈칸을 콕 누르고, ${friend}를 콕! ${w('스티커를 <b>끌어다</b> 빈칸에 놓아도 돼요.', '숫자를 <b>끌어다</b> 빈칸에 놓아도 돼요.')}</p>
                 </li>
                 <li>
-                    <h3>틀려도 괜찮아요</h3>
+                    <h3>틀리면 몬스터볼이 줄어요</h3>
                     <div class="h-say"><img class="stk" src="${imgSrc(team[0].id)}" alt=""><span>같은 가로줄에 ${esc(josa(name(1), '이', '가'))} 있어!</span></div>
                     <p>틀리면 ${w('붙지', '써지지')} 않고 돌아가요. 왜 안 되는지도 알려 줘요.</p>
+                    <div class="h-balls"><span class="balls" aria-hidden="true"><i class="ball"></i>6</span>
+                        <p><b>빈칸 수만큼</b> 틀려도 괜찮아요. 빈칸이 6개면 6번까지!</p></div>
+                    <p>그보다 더 틀리면 <b>포켓몬이 도망가요</b> 💨 판은 끝까지 풀 수 있지만 도감에는 안 붙어요.</p>
                 </li>
                 <li>
                     <h3>어려우면 힌트 💡</h3>
@@ -950,9 +1030,10 @@
                 <li>
                     <h3>도감을 채워요 📖</h3>
                     <div class="h-book">
-                        <img class="stk" src="${imgSrc(first[0])}" alt=""><img class="blank" src="${imgSrc(first[1])}" alt=""><img class="blank" src="${imgSrc(first[2])}" alt="">
+                        <span class="shiny"><img class="stk" src="${imgSrc(first[0])}" alt=""></span><img class="stk" src="${imgSrc(first[1])}" alt=""><img class="blank" src="${imgSrc(first[2])}" alt="">
                     </div>
                     <p>판을 다 채우면 새 친구가 도감에 붙어요. <b>어려운 판일수록 귀한 친구</b>를 만나요.</p>
+                    <p>힌트도 실수도 없이 깨면 별 3개! 그 친구는 <b>반짝이</b>가 돼요 ✨</p>
                 </li>
             </ol>
             <p class="h-more">더 있어요 — ✏️ <b>메모</b>: 빈칸에 작은 숫자로 적어 두기 (6칸·9칸) · 🔢 <b>숫자로</b>: 그림 대신 숫자로 풀기 · ⏸ 시계를 누르면 <b>잠깐 쉬기</b> · ← 를 누르면 <b>나가기</b></p>`;

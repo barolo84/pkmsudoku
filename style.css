@@ -128,6 +128,18 @@
 
     /* 스티커의 흰 테두리(다이컷) + 종이 위 그림자 */
     --diecut: drop-shadow(2px 0 0 var(--page)) drop-shadow(-2px 0 0 var(--page)) drop-shadow(0 2px 0 var(--page)) drop-shadow(0 -2px 0 var(--page)) drop-shadow(0 3px 2px rgba(62, 36, 23, .26));
+    /* 반짝이 스티커: 흰 테두리 바깥에 금색 테두리를 한 겹 더 */
+    --diecut-gold: drop-shadow(2px 0 0 var(--page)) drop-shadow(-2px 0 0 var(--page)) drop-shadow(0 2px 0 var(--page)) drop-shadow(0 -2px 0 var(--page)) drop-shadow(2.5px 0 0 var(--sun)) drop-shadow(-2.5px 0 0 var(--sun)) drop-shadow(0 2.5px 0 var(--sun)) drop-shadow(0 -2.5px 0 var(--sun)) drop-shadow(0 3px 2px rgba(62, 36, 23, .26));
+}
+
+/* 화면에는 안 보이고 읽어 주기에만 쓰는 글 */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 *,
@@ -767,8 +779,9 @@ h3 {
 .g-top {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "back buddy timer";
-    gap: var(--space-sm);
+    /* 몬스터볼(틀려도 되는 횟수)은 시계 아래에: 폰 너비에서는 한 줄에 다 놓으면 말풍선이 너무 좁아진다 */
+    grid-template-areas: "back buddy timer" "back buddy balls";
+    gap: 4px var(--space-sm);
     align-items: center;
 }
 
@@ -868,6 +881,105 @@ h3 {
 .timer-ico {
     font-size: .8rem;
     opacity: .7;
+}
+
+/* 틀려도 되는 횟수: 몬스터볼 + 남은 수 */
+.balls {
+    grid-area: balls;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px 0 6px;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    background: var(--page);
+    border: 2.5px solid var(--ink);
+    border-radius: 14px;
+}
+
+.ball {
+    position: relative;
+    flex: none;
+    width: 19px;
+    height: 19px;
+    background: linear-gradient(var(--red) 0 43%, var(--ink) 43% 57%, var(--page) 57%);
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+}
+
+.ball::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 7px;
+    height: 7px;
+    margin: auto;
+    background: var(--page);
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+}
+
+/* 2번 이하 남으면 빨갛게, 0이면 두근두근, 도망가면 흐리게 */
+.balls.low {
+    color: var(--red-deep);
+    background: var(--red-soft);
+}
+
+.balls.last {
+    animation: ball-warn 1.1s ease-in-out infinite;
+}
+
+.balls.fled {
+    color: var(--ink-3);
+    background: var(--paper-2);
+    border-color: var(--ink-3);
+}
+
+.balls.fled .ball {
+    filter: grayscale(1);
+    opacity: .45;
+}
+
+.balls.used {
+    animation: ball-used .5s var(--ease-out);
+}
+
+.balls.used .ball {
+    animation: ball-spin .5s var(--ease-out);
+}
+
+@keyframes ball-warn {
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+@keyframes ball-used {
+    20% {
+        transform: translateX(-4px);
+    }
+
+    40% {
+        transform: translateX(4px);
+    }
+
+    60% {
+        transform: translateX(-3px);
+    }
+
+    80% {
+        transform: translateX(2px);
+    }
+}
+
+@keyframes ball-spin {
+    to {
+        transform: rotate(-360deg);
+    }
 }
 
 .g-board-area {
@@ -1114,6 +1226,28 @@ h3 {
     justify-content: flex-start;
 }
 
+/* 포켓몬이 도망갔을 때: 같은 자리를 덮는다 */
+.leave.fled {
+    justify-items: center;
+    gap: var(--space-sm);
+    text-align: center;
+}
+
+.leave.fled b {
+    font-size: var(--text-lg);
+}
+
+.leave.fled p {
+    max-width: 18em;
+    margin-bottom: var(--space-xs);
+    color: var(--ink-2);
+}
+
+.fled-ico {
+    font-size: 2.4rem;
+    line-height: 1;
+}
+
 /* 스티커 통 */
 .g-tray {
     display: grid;
@@ -1312,7 +1446,12 @@ h3 {
     .g-top {
         grid-area: top;
         grid-template-columns: auto 1fr auto;
-        grid-template-areas: "back . timer" "buddy buddy buddy";
+        grid-template-areas: "back balls timer" "buddy buddy buddy";
+        row-gap: var(--space-sm);
+    }
+
+    .balls {
+        justify-self: end;
     }
 
     .g-board-area {
@@ -1541,6 +1680,53 @@ h3 {
     width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
+}
+
+/* 반짝이 친구 (별 3개로 얻은 친구): 금색 테두리 + 반짝이는 별 두 개 */
+.shiny {
+    position: relative;
+}
+
+.shiny img {
+    filter: var(--diecut-gold);
+}
+
+.shiny::before,
+.shiny::after {
+    content: '✦';
+    position: absolute;
+    z-index: 1;
+    line-height: 1;
+    color: var(--sun);
+    -webkit-text-stroke: 1.5px var(--ink);
+    paint-order: stroke fill;
+    pointer-events: none;
+    animation: twinkle 1.8s ease-in-out infinite;
+}
+
+.shiny::before {
+    top: -4%;
+    right: 2%;
+    font-size: 1.6em;
+}
+
+.shiny::after {
+    top: 34%;
+    left: -2%;
+    font-size: 1em;
+    animation-delay: -.9s;
+}
+
+@keyframes twinkle {
+
+    0%,
+    100% {
+        transform: scale(.7);
+    }
+
+    50% {
+        transform: scale(1.1) rotate(25deg);
+    }
 }
 
 /* 도감이 얼마나 찼는지 */
@@ -2004,6 +2190,16 @@ h3 {
 .h-book .blank {
     filter: brightness(0);
     opacity: .12;
+}
+
+.h-balls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.h-balls .balls {
+    flex: none;
 }
 
 .help #help-done {

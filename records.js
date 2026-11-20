@@ -1,4 +1,4 @@
-// 걸린 시간·별·도감 보상 — 화면과 무관한 순수 로직
+// 걸린 시간·별·틀려도 되는 횟수·도감 보상(반짝이 포함) — 화면과 무관한 순수 로직
 // (브라우저: window.SudokuRecords, Node: require)
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./engine.js'));
@@ -32,6 +32,15 @@
         return REWARDS_BY_SIZE[size] || 1;
     }
 
+    // 틀려도 되는 횟수 = 그 판의 빈칸 수. 0번 남아도 아직 괜찮고, 그보다 더 틀리면(음수) 포켓몬이 도망간다.
+    function chancesLeft(blanks, mistakes) {
+        return blanks - mistakes;
+    }
+
+    function canCatch(blanks, mistakes) {
+        return mistakes <= blanks;
+    }
+
     // 도감 보상: 아직 없는 친구 중에서 뽑되, 방금 함께 논 팀(prefer)을 먼저
     function pickRewards(roster, caught, count, rng, prefer = []) {
         const have = new Set(caught), fav = new Set(prefer);
@@ -41,5 +50,19 @@
         return first.concat(rest).slice(0, count);
     }
 
-    return { elapsedSeconds, formatTime, stars, hintLimit, rewardCount, pickRewards };
+    // 한 판을 끝냈을 때 도감에 생기는 일 (pool = 이 난이도에서 얻을 수 있는 친구들)
+    //  - 빈칸 수보다 많이 틀렸으면 포켓몬이 도망가서 아무것도 없다
+    //  - 아직 없는 친구가 붙는다. 별 3개(힌트·실수 없음)면 그 친구는 반짝이
+    //  - 이 판 친구를 다 모았으면, 별 3개일 때 모은 친구 하나가 반짝이로 바뀐다
+    function clearReward({ pool, caught, shiny = [], size, hints, mistakes, blanks, rng, prefer = [] }) {
+        if (!canCatch(blanks, mistakes)) return { fled: true, caught: [], shiny: [] };
+        const perfect = stars(hints, mistakes) === 3;
+        const got = pickRewards(pool, caught, rewardCount(size), rng, prefer);
+        if (got.length) return { fled: false, caught: got, shiny: perfect ? got.slice() : [] };
+        if (!perfect) return { fled: false, caught: [], shiny: [] };
+        const have = new Set(caught);
+        return { fled: false, caught: [], shiny: pickRewards(pool.filter(id => have.has(id)), shiny, 1, rng, prefer) };
+    }
+
+    return { elapsedSeconds, formatTime, stars, hintLimit, rewardCount, chancesLeft, canCatch, pickRewards, clearReward };
 }));
