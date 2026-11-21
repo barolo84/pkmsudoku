@@ -936,13 +936,22 @@
         $('book-body').innerHTML = E.LEVELS.map(l => {
             const info = LEVEL_INFO[l.id], pool = POOLS[l.id], shinyN = pool.filter(id => shiny.has(id)).length;
             return `<section class="book-team">
-                <h3><span class="book-lv" aria-hidden="true">${info.lv}</span>${esc(info.name)} <small>${SIZE_INFO[l.size].label} · ${poolHave(l.id)}/${pool.length}${shinyN ? ` · ✨${shinyN}` : ''}</small></h3>
+                <div class="book-head">
+                    <h3><span class="book-lv" aria-hidden="true">${info.lv}</span><span class="book-name">${esc(info.name)}</span><small>${SIZE_INFO[l.size].label} · ${poolHave(l.id)}/${pool.length}${shinyN ? ` · ✨${shinyN}` : ''}</small></h3>
+                    <button class="chunky book-play" data-level="${l.id}" aria-label="${esc(info.name)} 판 시작하기"><span aria-hidden="true">▶</span> 시작</button>
+                </div>
                 <div class="book-grid">${pool.map(id => caught.has(id)
                 ? `<div class="slot${shiny.has(id) ? ' shiny' : ''}"><img class="stk" src="${imgSrc(id)}" alt="" loading="lazy"><span>${esc(POKE[id].name)}${shiny.has(id) ? '<span class="sr-only"> (반짝이)</span>' : ''}</span></div>`
                 : `<div class="slot blank"><img src="${imgSrc(id)}" alt="" loading="lazy"><span>?</span></div>`).join('')}</div>
             </section>`;
         }).join('');
     }
+
+    // 난이도마다 그 판을 바로 시작하는 버튼 (처음 화면에서 난이도를 누른 것과 같다: 고른 팀으로 새 판)
+    $('book-body').addEventListener('click', e => {
+        const btn = e.target.closest('.book-play');
+        if (btn) { sfx.place(); startGame(btn.dataset.level); }
+    });
 
     // 숨은 기능(부모용): 제목의 📖를 1.5초 안에 3번 누르면 도감 초기화를 물어본다 (pkmq의 🏆 3연타와 같은 방식)
     let bookTaps = 0, bookTapTimer = 0;

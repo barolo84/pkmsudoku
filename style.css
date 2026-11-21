@@ -1847,17 +1847,34 @@ h3 {
     gap: var(--space-xl);
 }
 
-.book-team h3 {
+/* 난이도 제목 + 바로 시작 버튼 */
+.book-head {
     display: flex;
-    align-items: baseline;
-    gap: var(--space-sm);
+    align-items: center;
+    gap: var(--space-md);
     margin-bottom: var(--space-sm);
+}
+
+/* 번호 | 이름 / 판 크기·모은 수 (두 줄) */
+.book-team h3 {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-sm);
     font-size: var(--text-lg);
 }
 
-.book-lv {
+.book-play {
     flex: none;
-    align-self: center;
+    min-height: 46px;
+    padding: var(--space-xs) var(--space-lg);
+    background: var(--sun);
+}
+
+.book-lv {
+    grid-row: span 2;
     display: grid;
     place-items: center;
     width: 1.5em;
@@ -1872,6 +1889,7 @@ h3 {
     font-family: var(--font-body);
     font-weight: 700;
     font-size: var(--text-sm);
+    line-height: 1.2;
     color: var(--ink-2);
 }
 
