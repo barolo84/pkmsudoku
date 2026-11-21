@@ -334,11 +334,35 @@ h3 {
     padding-bottom: var(--space-xs);
 }
 
-.hero-sound {
+/* 왼쪽 위: 모든 소리 / 배경음악 */
+.hero-audio {
     position: absolute;
     top: 0;
     left: 0;
     z-index: 2;
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* 배경음악이 꺼졌을 때: 흐리게 + 빗금 */
+.music-btn {
+    position: relative;
+}
+
+.music-btn.off span {
+    opacity: .4;
+}
+
+.music-btn.off::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 26px;
+    height: 2.5px;
+    margin: auto;
+    background: var(--ink);
+    border-radius: 2px;
+    transform: rotate(-45deg);
 }
 
 .hero-stickers {
@@ -378,7 +402,7 @@ h3 {
 
 .hero-stickers img:nth-child(4) {
     width: clamp(62px, 18%, 104px);
-    left: 16%;
+    left: max(16%, 112px); /* 왼쪽 위 소리 버튼 두 개를 가리지 않게 */
     top: -1%;
     --rot: 10deg;
     animation-delay: .18s;

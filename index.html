@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gaegu:wght@400;700&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=8" />
+    <link rel="stylesheet" href="style.css?v=9" />
 </head>
 
 <body>
@@ -26,9 +26,14 @@
         <!-- ===== 처음 화면 ===== -->
         <section id="home" class="view home">
             <header class="hero">
-                <button class="icon-btn hero-sound" id="sound-btn" aria-pressed="false" aria-label="소리 끄기">
-                    <span id="sound-ico" aria-hidden="true">🔊</span>
-                </button>
+                <div class="hero-audio">
+                    <button class="icon-btn" id="sound-btn" aria-pressed="false" aria-label="소리 끄기">
+                        <span id="sound-ico" aria-hidden="true">🔊</span>
+                    </button>
+                    <button class="icon-btn music-btn" id="music-btn" aria-pressed="true" aria-label="배경음악 끄기">
+                        <span aria-hidden="true">🎵</span>
+                    </button>
+                </div>
                 <div class="hero-stickers" id="hero-stickers" aria-hidden="true"></div>
                 <h1 class="title"><span class="title-sub">포켓몬</span><span class="title-main">스도쿠</span></h1>
                 <p class="hero-note">스티커를 붙여서 판을 완성해요</p>
@@ -188,10 +193,11 @@
     <div class="ghost" id="ghost" aria-hidden="true"></div>
     <canvas id="confetti" aria-hidden="true"></canvas>
 
-    <script src="engine.js?v=8"></script>
-    <script src="records.js?v=8"></script>
-    <script src="data.js?v=8"></script>
-    <script src="app.js?v=8"></script>
+    <script src="engine.js?v=9"></script>
+    <script src="records.js?v=9"></script>
+    <script src="data.js?v=9"></script>
+    <script src="music.js?v=9"></script>
+    <script src="app.js?v=9"></script>
 </body>
 
 </html>

@@ -27,7 +27,8 @@
 
     let teamId = teamOf(store.get('team', TEAMS[0].id)).id;
     let mode = store.get('mode', 'pic') === 'num' ? 'num' : 'pic';   // 칸에 그림을 보일지 숫자를 보일지
-    let muted = store.get('mute', '0') === '1';
+    let muted = store.get('mute', '0') === '1';                       // 모든 소리 끄기
+    let musicOn = store.get('music', '1') === '1';                    // 배경음악 (효과음과 따로 끈다)
     const caught = new Set(store.json('caught', []).filter(id => POKE[id]));
     const poolHave = level => POOLS[level].filter(id => caught.has(id)).length; // 그 난이도 친구 중 모은 수
     const shiny = new Set(store.json('shiny', []).filter(id => caught.has(id))); // 별 3개로 얻은 반짝이 친구
@@ -75,6 +76,8 @@
         }
         const run = (notes, dur, o) => notes.forEach((f, i) => tone(f, dur, { ...o, at: i * (o.step || 0.08) }));
         return {
+            wake: ac,            // 손가락 동작 안에서 불러 소리를 깨운다 (배경음악도 같은 AudioContext를 쓴다)
+            audio: () => ctx,    // 만들지 않고 지금 것만
             tap: () => tone(660, 0.06, { vol: 0.07 }),
             place: () => { tone(587, 0.09); tone(880, 0.15, { at: 0.07 }); },
             wrong: () => { tone(262, 0.16, { type: 'sine', vol: 0.17, slide: 0.78 }); tone(196, 0.22, { type: 'sine', vol: 0.15, at: 0.13, slide: 0.82 }); },
@@ -83,6 +86,88 @@
             win: () => run([523, 659, 784, 1047, 784, 1047, 1319], 0.2, { step: 0.11, vol: 0.15 }),
             reward: () => run([1047, 1319, 1568, 2093], 0.18, { type: 'sine', step: 0.09 }),
         };
+    })();
+
+    // ===== 배경음악: music.js의 악보를 게임보이처럼 연주 (멜로디 = 25% 펄스파, 베이스 = 삼각파) =====
+    // 0.3초 앞까지 음을 미리 예약해 두는 방식이라 화면이 바빠도 박자가 흔들리지 않는다.
+    const music = (() => {
+        const M = window.SudokuMusic;
+        const tunes = {};
+        for (const key in M.TUNES) {
+            const t = M.TUNES[key], tracks = {};
+            let len = 0;
+            for (const part in t.tracks) {
+                const p = M.parseTrack(t.tracks[part]);
+                len = p.length;
+                tracks[part] = {};
+                p.notes.forEach(n => { tracks[part][n.step] = n; });
+            }
+            tunes[key] = { bpm: t.bpm, len, tracks };
+        }
+        const VOICE = { lead: { vol: 0.04, wave: 'pulse' }, bass: { vol: 0.07, wave: 'triangle', short: true } };
+        let bus = null, cur = '', step = 0, nextT = 0, timer = 0, pulse = null;
+
+        function pulseWave(c, duty) {
+            try {
+                const n = 32, re = new Float32Array(n), im = new Float32Array(n);
+                for (let k = 1; k < n; k++) re[k] = 2 / (k * Math.PI) * Math.sin(k * Math.PI * duty);
+                return c.createPeriodicWave(re, im);
+            } catch (e) { return null; }
+        }
+        function note(c, voice, midi, t, dur) {
+            try {
+                const osc = c.createOscillator(), g = c.createGain();
+                if (voice.wave === 'pulse' && pulse) osc.setPeriodicWave(pulse);
+                else osc.type = voice.wave === 'pulse' ? 'square' : voice.wave;
+                osc.frequency.setValueAtTime(M.midiToFreq(midi), t);
+                const end = t + (voice.short ? Math.min(dur, 0.3) : dur * 0.92);
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(voice.vol, t + 0.012);
+                if (!voice.short) g.gain.setValueAtTime(voice.vol, Math.max(t + 0.013, end - 0.05));
+                g.gain.exponentialRampToValueAtTime(0.0001, end);
+                osc.connect(g); g.connect(bus);
+                osc.start(t); osc.stop(end + 0.02);
+            } catch (e) { }
+        }
+        function tick() {
+            const c = sfx.audio();
+            if (!c || !bus) return;
+            const tune = tunes[cur], spb = 60 / tune.bpm / 2; // 8분음표 한 칸의 길이(초)
+            if (nextT < c.currentTime) nextT = c.currentTime + 0.05; // 멈췄다 돌아오면 밀린 음은 건너뛴다
+            while (nextT < c.currentTime + 0.3) {
+                for (const part in tune.tracks) {
+                    const n = tune.tracks[part][step];
+                    if (n) note(c, VOICE[part], n.midi, nextT, n.len * spb);
+                }
+                step = (step + 1) % tune.len;
+                nextT += spb;
+            }
+        }
+        function stop() {
+            clearInterval(timer);
+            timer = 0;
+            cur = '';
+            if (!bus) return;
+            const b = bus;
+            bus = null;
+            try { b.gain.setTargetAtTime(0, b.context.currentTime, 0.05); } catch (e) { }
+            setTimeout(() => { try { b.disconnect(); } catch (e) { } }, 600);
+        }
+        function play(name) { // 같은 곡이 이미 나오고 있으면 그대로 둔다
+            const c = sfx.audio();
+            if (!name || !musicOn || muted || !c || c.state !== 'running' || document.hidden) { stop(); return; }
+            if (name === cur && timer) return;
+            stop();
+            if (!pulse) pulse = pulseWave(c, 0.25);
+            bus = c.createGain();
+            bus.connect(c.destination);
+            cur = name;
+            step = 0;
+            nextT = c.currentTime + 0.08;
+            tick();
+            timer = setInterval(tick, 60);
+        }
+        return { play, stop };
     })();
 
     // ===== 화면 전환 (처음 화면이 바닥, 나머지는 한 칸 위) =====
@@ -94,7 +179,23 @@
         VIEWS.forEach(v => { $(v).hidden = v !== name; });
         view = name;
         window.scrollTo(0, 0);
+        syncMusic();
     }
+
+    // 화면마다 나오는 곡: 게임 중(게임 중에 연 방법 화면 포함)은 조용한 곡, 완성 화면은 축하 소리만
+    function syncMusic() {
+        const tune = view === 'clear' ? '' : view === 'game' || (view === 'help' && helpFrom === 'game') ? 'game' : 'home';
+        music.play(tune);
+    }
+    // 브라우저는 손가락 동작이 있어야 소리를 낼 수 있다: 처음 누를 때 깨우고 곡을 튼다
+    function wakeAudio() {
+        if (muted) return;
+        const c = sfx.wake();
+        if (!c) return;
+        if (c.state === 'running') syncMusic();
+        else c.resume().then(syncMusic, () => { });
+    }
+    ['pointerup', 'keydown'].forEach(ev => document.addEventListener(ev, wakeAudio, { capture: true, passive: true }));
     function show(name) {
         const prev = view;
         setView(name);
@@ -171,6 +272,10 @@
         $('sound-ico').textContent = muted ? '🔇' : '🔊';
         $('sound-btn').setAttribute('aria-pressed', muted);
         $('sound-btn').setAttribute('aria-label', muted ? '소리 켜기' : '소리 끄기');
+        const mb = $('music-btn'), playing = musicOn && !muted; // 모든 소리를 끄면 음악도 꺼진 것으로 보인다
+        mb.classList.toggle('off', !playing);
+        mb.setAttribute('aria-pressed', playing);
+        mb.setAttribute('aria-label', playing ? '배경음악 끄기' : '배경음악 켜기');
     }
 
     function renderHome() {
@@ -210,6 +315,16 @@
         store.set('mute', muted ? '1' : '0');
         renderToggles();
         sfx.place();
+        syncMusic();
+    });
+    $('music-btn').addEventListener('click', () => {
+        if (muted) { muted = false; store.set('mute', '0'); musicOn = true; } // 다 꺼진 상태에서 누르면 소리를 다시 켠다
+        else musicOn = !musicOn;
+        store.set('music', musicOn ? '1' : '0');
+        renderToggles();
+        sfx.tap();
+        wakeAudio();
+        syncMusic();
     });
     $('open-book').addEventListener('click', () => { sfx.tap(); renderBook(); show('book'); });
     document.querySelectorAll('[data-home]').forEach(b => b.addEventListener('click', () => { sfx.tap(); goHome(); }));
@@ -487,7 +602,7 @@
         if (++ticks % 20 === 0) saveGame();
     }
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) saveGame(); else lastTick = performance.now();
+        if (document.hidden) { saveGame(); music.stop(); } else { lastTick = performance.now(); syncMusic(); }
     });
     window.addEventListener('pagehide', saveGame);
 
@@ -825,6 +940,7 @@
     function win() {
         game.done = true;
         stopClock();
+        music.stop(); // 완성 소리가 잘 들리게
         store.del('game');
         const { level, size, ms, hints, mistakes } = game;
         const secs = R.elapsedSeconds(ms), st = R.stars(hints, mistakes);
@@ -1045,7 +1161,7 @@
                     <p>힌트도 실수도 없이 깨면 별 3개! 그 친구는 <b>반짝이</b>가 돼요 ✨</p>
                 </li>
             </ol>
-            <p class="h-more">더 있어요 — ✏️ <b>메모</b>: 빈칸에 작은 숫자로 적어 두기 (6칸·9칸) · 🔢 <b>숫자로</b>: 그림 대신 숫자로 풀기 · ⏸ 시계를 누르면 <b>잠깐 쉬기</b> · ← 를 누르면 <b>나가기</b></p>`;
+            <p class="h-more">더 있어요 — ✏️ <b>메모</b>: 빈칸에 작은 숫자로 적어 두기 (6칸·9칸) · 🔢 <b>숫자로</b>: 그림 대신 숫자로 풀기 · ⏸ 시계를 누르면 <b>잠깐 쉬기</b> · ← 를 누르면 <b>나가기</b> · 처음 화면 왼쪽 위 🎵 로 <b>배경음악</b> 끄고 켜기</p>`;
         $('help-done').textContent = helpFrom === 'game' ? '판으로 돌아가기' : '알겠어!';
     }
 
