@@ -83,29 +83,38 @@
             wrong: () => { tone(262, 0.16, { type: 'sine', vol: 0.17, slide: 0.78 }); tone(196, 0.22, { type: 'sine', vol: 0.15, at: 0.13, slide: 0.82 }); },
             unit: () => run([523, 659, 784, 1047], 0.15, { step: 0.07 }),
             hint: () => { tone(988, 0.1, { type: 'sine' }); tone(1319, 0.2, { type: 'sine', at: 0.09 }); },
-            win: () => run([523, 659, 784, 1047, 784, 1047, 1319], 0.2, { step: 0.11, vol: 0.15 }),
-            reward: () => run([1047, 1319, 1568, 2093], 0.18, { type: 'sine', step: 0.09 }),
+            // 완성·새 친구·도망 소리는 music.js의 짧은 곡(징글)으로 연주한다
         };
     })();
 
-    // ===== 배경음악: music.js의 악보를 게임보이처럼 연주 (멜로디 = 25% 펄스파, 베이스 = 삼각파) =====
+    // ===== 배경음악·짧은 곡: music.js의 악보를 옛날 휴대용 게임기처럼 연주 =====
+    // 멜로디 = 25% 펄스파 + 조금 늦게 들어오는 떨림(비브라토), 화음 = 50% 펄스파(짧게 끊어서),
+    // 베이스 = 삼각파, 드럼 = 잡음(스네어·하이햇)과 뚝 떨어지는 낮은 음(킥).
     // 0.3초 앞까지 음을 미리 예약해 두는 방식이라 화면이 바빠도 박자가 흔들리지 않는다.
     const music = (() => {
         const M = window.SudokuMusic;
-        const tunes = {};
-        for (const key in M.TUNES) {
-            const t = M.TUNES[key], tracks = {};
+        function compile(t) { // 악보 → 칸마다 울릴 음
+            const parts = {};
             let len = 0;
             for (const part in t.tracks) {
-                const p = M.parseTrack(t.tracks[part]);
+                const p = M.parseTrack(t.tracks[part], part === 'drums');
                 len = p.length;
-                tracks[part] = {};
-                p.notes.forEach(n => { tracks[part][n.step] = n; });
+                parts[part] = {};
+                p.notes.forEach(n => { parts[part][n.step] = n; });
             }
-            tunes[key] = { bpm: t.bpm, len, tracks };
+            return { spb: 60 / t.bpm / t.div, len, parts, mix: t.mix || {} };
         }
-        const VOICE = { lead: { vol: 0.04, wave: 'pulse' }, bass: { vol: 0.07, wave: 'triangle', short: true } };
-        let bus = null, cur = '', step = 0, nextT = 0, timer = 0, pulse = null;
+        const tunes = {}, jingles = {};
+        for (const k in M.TUNES) tunes[k] = compile(M.TUNES[k]);
+        for (const k in M.JINGLES) jingles[k] = compile(M.JINGLES[k]);
+
+        const VOICE = {
+            lead: { vol: 0.045, wave: 'pulse', vib: true },
+            harm: { vol: 0.024, wave: 'square', cut: 0.11 },
+            bass: { vol: 0.075, wave: 'triangle', cut: 0.24 },
+        };
+        const DRUM = { k: 0.12, s: 0.05, h: 0.022 };
+        let bus = null, cur = '', step = 0, nextT = 0, timer = 0, pulse = null, noise = null;
 
         function pulseWave(c, duty) {
             try {
@@ -114,34 +123,96 @@
                 return c.createPeriodicWave(re, im);
             } catch (e) { return null; }
         }
-        function note(c, voice, midi, t, dur) {
+        function prepare(c) {
+            if (!pulse) pulse = pulseWave(c, 0.25);
+            if (!noise) {
+                try {
+                    noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
+                    const d = noise.getChannelData(0);
+                    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+                } catch (e) { noise = null; }
+            }
+        }
+        function noteOn(c, out, voice, midi, t, dur, mul) {
             try {
-                const osc = c.createOscillator(), g = c.createGain();
+                const osc = c.createOscillator(), g = c.createGain(), f = M.midiToFreq(midi), vol = voice.vol * mul;
                 if (voice.wave === 'pulse' && pulse) osc.setPeriodicWave(pulse);
                 else osc.type = voice.wave === 'pulse' ? 'square' : voice.wave;
-                osc.frequency.setValueAtTime(M.midiToFreq(midi), t);
-                const end = t + (voice.short ? Math.min(dur, 0.3) : dur * 0.92);
+                osc.frequency.setValueAtTime(f, t);
+                const end = t + (voice.cut ? Math.min(dur, voice.cut) : Math.max(0.05, dur - 0.02));
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.exponentialRampToValueAtTime(voice.vol, t + 0.012);
-                if (!voice.short) g.gain.setValueAtTime(voice.vol, Math.max(t + 0.013, end - 0.05));
+                g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+                if (!voice.cut) g.gain.setValueAtTime(vol, Math.max(t + 0.011, end - 0.04));
                 g.gain.exponentialRampToValueAtTime(0.0001, end);
-                osc.connect(g); g.connect(bus);
+                if (voice.vib && dur > 0.25) { // 긴 음은 조금 있다가 살짝 떨린다
+                    const lfo = c.createOscillator(), depth = c.createGain();
+                    lfo.frequency.value = 5.5;
+                    depth.gain.setValueAtTime(0, t + 0.12);
+                    depth.gain.linearRampToValueAtTime(f * 0.012, t + 0.3);
+                    lfo.connect(depth);
+                    depth.connect(osc.frequency);
+                    lfo.start(t);
+                    lfo.stop(end + 0.02);
+                }
+                osc.connect(g); g.connect(out);
                 osc.start(t); osc.stop(end + 0.02);
             } catch (e) { }
+        }
+        function drumHit(c, out, kind, t, mul) {
+            try {
+                const g = c.createGain(), vol = DRUM[kind] * mul;
+                g.connect(out);
+                if (kind === 'k' || !noise) { // 킥 (잡음을 못 만드는 기기에서는 다른 북도 짧은 음으로)
+                    const o = c.createOscillator(), len = kind === 'k' ? 0.13 : 0.05;
+                    o.type = 'sine';
+                    o.frequency.setValueAtTime(kind === 'k' ? 150 : 900, t);
+                    o.frequency.exponentialRampToValueAtTime(kind === 'k' ? 45 : 500, t + len);
+                    g.gain.setValueAtTime(vol, t);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+                    o.connect(g);
+                    o.start(t); o.stop(t + len + 0.02);
+                } else { // 스네어 = 가운데 잡음, 하이햇 = 높은 잡음
+                    const src = c.createBufferSource(), flt = c.createBiquadFilter(), len = kind === 's' ? 0.11 : 0.035;
+                    src.buffer = noise;
+                    flt.type = kind === 's' ? 'bandpass' : 'highpass';
+                    flt.frequency.value = kind === 's' ? 1800 : 7000;
+                    g.gain.setValueAtTime(vol, t);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+                    src.connect(flt); flt.connect(g);
+                    src.start(t, Math.random() * 0.5);
+                    src.stop(t + len + 0.02);
+                }
+            } catch (e) { }
+        }
+        function hitStep(c, out, tune, s, t) { // 한 칸에 있는 모든 줄의 소리를 예약
+            for (const part in tune.parts) {
+                const n = tune.parts[part][s];
+                if (!n) continue;
+                const mul = part in tune.mix ? tune.mix[part] : 1;
+                if (part === 'drums') drumHit(c, out, n.hit, t, mul);
+                else noteOn(c, out, VOICE[part], n.midi, t, n.len * tune.spb, mul);
+            }
         }
         function tick() {
             const c = sfx.audio();
             if (!c || !bus) return;
-            const tune = tunes[cur], spb = 60 / tune.bpm / 2; // 8분음표 한 칸의 길이(초)
+            const tune = tunes[cur];
             if (nextT < c.currentTime) nextT = c.currentTime + 0.05; // 멈췄다 돌아오면 밀린 음은 건너뛴다
             while (nextT < c.currentTime + 0.3) {
-                for (const part in tune.tracks) {
-                    const n = tune.tracks[part][step];
-                    if (n) note(c, VOICE[part], n.midi, nextT, n.len * spb);
-                }
+                hitStep(c, bus, tune, step, nextT);
                 step = (step + 1) % tune.len;
-                nextT += spb;
+                nextT += tune.spb;
             }
+        }
+        // 짧은 곡은 한 번만 (효과음과 같아서 배경음악을 꺼도 나오고, 모든 소리를 끄면 안 나온다)
+        function jingle(name) {
+            const c = sfx.wake(), j = jingles[name];
+            if (!c || !j) return;
+            prepare(c);
+            const out = c.createGain(), t0 = c.currentTime + 0.03;
+            out.connect(c.destination);
+            for (let s = 0; s < j.len; s++) hitStep(c, out, j, s, t0 + s * j.spb);
+            setTimeout(() => { try { out.disconnect(); } catch (e) { } }, (j.len * j.spb + 1.5) * 1000);
         }
         function stop() {
             clearInterval(timer);
@@ -158,7 +229,7 @@
             if (!name || !musicOn || muted || !c || c.state !== 'running' || document.hidden) { stop(); return; }
             if (name === cur && timer) return;
             stop();
-            if (!pulse) pulse = pulseWave(c, 0.25);
+            prepare(c);
             bus = c.createGain();
             bus.connect(c.destination);
             cur = name;
@@ -167,7 +238,7 @@
             tick();
             timer = setInterval(tick, 60);
         }
-        return { play, stop };
+        return { play, stop, jingle };
     })();
 
     // ===== 화면 전환 (처음 화면이 바닥, 나머지는 한 칸 위) =====
@@ -183,8 +254,10 @@
     }
 
     // 화면마다 나오는 곡: 게임 중(게임 중에 연 방법 화면 포함)은 조용한 곡, 완성 화면은 축하 소리만
+    // 포켓몬이 도망간 화면이 판을 덮고 있을 때도 조용히
     function syncMusic() {
-        const tune = view === 'clear' ? '' : view === 'game' || (view === 'help' && helpFrom === 'game') ? 'game' : 'home';
+        const tune = view === 'clear' || (view === 'game' && !$('fled').hidden) ? ''
+            : view === 'game' || (view === 'help' && helpFrom === 'game') ? 'game' : 'home';
         music.play(tune);
     }
     // 브라우저는 손가락 동작이 있어야 소리를 낼 수 있다: 처음 누를 때 깨우고 곡을 튼다
@@ -669,11 +742,14 @@
         $('fled').hidden = false;
         endDrag();
         saveGame();
+        syncMusic(); // 배경음악을 멈추고
+        music.jingle('fled'); // 힘 빠지는 소리
     }
     function closeFled() {
         $('fled').hidden = true;
         paused = false;
         lastTick = performance.now();
+        syncMusic();
     }
     $('fled-again').addEventListener('click', () => { sfx.place(); startGame(game.level); });
     $('fled-stay').addEventListener('click', () => { sfx.tap(); closeFled(); say('좋아, 끝까지 해 보자!'); });
@@ -971,7 +1047,7 @@
             el.style.setProperty('--i', Math.floor(i / size) + i % size);
             el.classList.add('hop');
         });
-        sfx.win();
+        music.jingle('clear');
         say('우와! 다 붙였어!');
         setTimeout(() => {
             if (view !== 'game' || !result) return;
@@ -1021,7 +1097,7 @@
         $('rewards').dataset.n = shown.length;
         $('rewards').innerHTML = shown.map((id, i) =>
             `<div class="reward${r.shinyIds.includes(id) ? ' shiny' : ''}" style="--i:${i}"><img class="stk" src="${imgSrc(id)}" alt=""><span>${esc(POKE[id].name)}</span></div>`).join('');
-        if (shown.length) setTimeout(() => { if (view === 'clear') sfx.reward(); }, reducedMotion ? 0 : 1000);
+        if (shown.length) setTimeout(() => { if (view === 'clear') music.jingle('reward'); }, reducedMotion ? 0 : 1000);
 
         // 이 판의 친구를 얼마나 모았는지: 방금 붙은 만큼 차오른다
         const fill = $('meter-fill');
